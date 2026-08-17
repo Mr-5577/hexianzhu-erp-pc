@@ -17,10 +17,10 @@
     "axios": "^1.19.0",
     "dayjs": "^1.11.22",
     "element-plus": "^2.14.4",
-    "pinia": "^4.0.2",
+    "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "vue": "^3.5.40",
-    "vue-router": "^5.2.0"
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
