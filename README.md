@@ -1,4 +1,4 @@
-# cost-system - ERP 管理系统
+# ERP 管理系统
 
 基于 Vue 3 + TypeScript + Vite 构建的现代化 ERP 管理系统。
 
