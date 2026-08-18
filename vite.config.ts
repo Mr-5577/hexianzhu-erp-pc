@@ -14,8 +14,8 @@ export default defineConfig(({ mode }) => {
   const isProd = mode === "production";
   const isTest = mode === "test";
   const isDev = mode === "development";
-  console.log("当前env：", env);
-  console.log("当前环境：", mode);
+  // console.log("当前env：", env);
+  // console.log("当前环境：", mode);
   // 生成时间戳
   const timestamp = Date.now();
 
