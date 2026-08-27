@@ -20,7 +20,10 @@
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "vue": "^3.5.40",
-    "vue-router": "^4.6.3"
+    "vue-router": "^4.6.3",
+    "vxe-pc-ui": "~4.16.27",
+    "vxe-table": "~4.20.12",
+    "xe-utils": "^4.0.12"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
