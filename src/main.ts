@@ -11,9 +11,9 @@ import 'vxe-pc-ui/lib/style.css'
 VxeTable.setup({
   table: {
     // 表头单元格高度(全局)
-    headerCellConfig: { height: 38 },
+    headerCellConfig: { height: 32 },
     // 单元格高度(全局)
-    cellConfig: { height: 38 }
+    cellConfig: { height: 32 }
   }
 })
 

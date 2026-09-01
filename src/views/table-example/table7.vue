@@ -16,6 +16,7 @@
       :show-toolbar="true"
       :pagination="false"
       @selection-change="handleSelectionChange"
+      @cell-click="handleCellClick"
     >
       <!-- 金额格式化 -->
       <template #amount="{ row }">
@@ -91,12 +92,17 @@ const columns: VxeTableColumn[] = [
     width: 150,
     // 即使设置了 editable，disabled: true 也会覆盖
     editable: true,
+    clickable: true, // 点击单元格触发 onClick 事件
+    onClick: (data) => {
+      console.log("点击了合同编号:", data);
+    },
   },
   {
     field: "contractName",
     title: "合同名称",
     width: 200,
     editable: true,
+    clickable: true, // 点击单元格触发 onClick 事件
   },
   {
     field: "supplier",
@@ -122,6 +128,9 @@ const columns: VxeTableColumn[] = [
 
 const handleSelectionChange = (selection: any[]) => {
   console.log("选中:", selection);
+};
+const handleCellClick = (data: any) => {
+  console.log("单元格点击:", data);
 };
 </script>
 

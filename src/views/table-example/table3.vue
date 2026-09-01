@@ -18,6 +18,9 @@
       :stripe="true"
       :show-toolbar="true"
       :pagination="false"
+      :height="'500px'"
+      :virtual-scroll="true"
+      :virtual-threshold="20"
       :tree-config="{
         childrenField: 'children', // ✅ 使用 childrenField（v4 语法）
         expandAll: false,

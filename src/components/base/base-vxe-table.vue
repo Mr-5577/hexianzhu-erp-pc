@@ -96,6 +96,8 @@
         :page-sizes="pageSizes"
         :layouts="paginationLayouts"
         :total="total"
+        size="small"
+        background
         @page-change="handlePageChange"
       />
     </div>
@@ -231,6 +233,10 @@ export interface VxeTableColumn {
   // ===== 数字输入相关 =====
   /** 数字精度（小数位数） */
   precision?: number;
+  /** 最小值，仅 number 类型有效 */
+  min?: number;
+  /** 最大值，仅 number 类型有效 */
+  max?: number;
 
   // ===== 级联选择相关 =====
   /** 级联选择器配置 */
@@ -568,7 +574,8 @@ const scrollYConfig = computed(() => {
  */
 const computedHeight = computed(() => {
   if (props.height) return props.height;
-  return undefined;
+  // return undefined;
+  return "100%";
 });
 
 /**
@@ -676,6 +683,7 @@ const createHeaderWithTip = (title: string, tipConfig: HeaderTipConfig) => {
  */
 const getEditRender = (col: VxeTableColumn): any => {
   const commonProps = {
+    size: "small",
     placeholder: col.placeholder || "",
     disabled: col.disabled,
   };
@@ -700,7 +708,10 @@ const getEditRender = (col: VxeTableColumn): any => {
         name: "VxeNumberInput",
         props: {
           ...commonProps,
-          step: col.precision ? Math.pow(0.1, col.precision) : 0.01,
+          step: col.precision ? Math.pow(0.1, col.precision) : 1,
+          precision: col.precision, // 控制小数位数
+          min: col.min || 0,
+          max: col.max,
         },
       };
     }
@@ -889,15 +900,9 @@ const convertColumn = (col: VxeTableColumn): any => {
   }
 
   // ===== 可点击单元格 =====
-  // 添加点击样式，并触发 cell-click 事件
+  // 添加点击样式
   if (col.clickable) {
     baseCol.className = "clickable-cell";
-    baseCol.cellClick = (params: any) => {
-      if (col.onClick) {
-        col.onClick(params.row, col);
-      }
-      emit("cell-click", { row: params.row, column: col, event: params.event });
-    };
   }
 
   return baseCol;
@@ -971,9 +976,36 @@ const handleCheckboxAll = (params: any) => {
 };
 
 /**
+ * 递归查找列配置（支持多级表头）
+ */
+const findColumnByField = (
+  columns: VxeTableColumn[],
+  field: string,
+): VxeTableColumn | undefined => {
+  for (const col of columns) {
+    if (col.field === field) {
+      return col;
+    }
+    if (col.children) {
+      const found = findColumnByField(col.children, field);
+      if (found) return found;
+    }
+  }
+  return undefined;
+};
+/**
  * 单元格点击事件
  */
 const handleCellClick = (params: any) => {
+  // 根据点击列的 field 匹配原始列配置
+  const field = params.column.field;
+  if (field) {
+    const col = findColumnByField(props.columns, field);
+    if (col?.clickable && typeof col.onClick === "function") {
+      col.onClick(params.row, col);
+    }
+  }
+  // 触发全局事件，供父组件监听
   emit("cell-click", {
     row: params.row,
     column: params.column,
@@ -1235,19 +1267,18 @@ watch(
           .vxe-body-column {
             font-size: 13px;
             color: #606266;
-
-            &.clickable-cell {
-              cursor: pointer;
-              color: #1890ff;
-
-              &:hover {
-                text-decoration: underline;
-              }
-            }
           }
         }
       }
+      // 可点击单元格样式
+      .clickable-cell {
+        cursor: pointer;
+        color: #1890ff;
 
+        &:hover {
+          text-decoration: underline;
+        }
+      }
       // 编辑状态样式
       .vxe-cell--edit {
         .vxe-input,
