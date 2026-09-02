@@ -14,6 +14,7 @@
       :page-size="pageSize"
       :current-page="currentPage"
       :page-sizes="[10, 20, 50]"
+      :height="'500px'"
       @pagination-change="handlePageChange"
       @data-change="handleDataChange"
       @selection-change="handleSelectionChange"
@@ -58,7 +59,7 @@ const generateData = (count: number) => {
   }));
 };
 
-const allData = generateData(45);
+const allData = generateData(405);
 const tableData = ref<any[]>([]);
 const currentPage = ref(1);
 const pageSize = ref(10);
@@ -155,7 +156,6 @@ const handlePageChange = (params: {
   currentPage.value = params.currentPage;
   pageSize.value = params.pageSize;
   getPageData();
-  ElMessage.info(`切换到第 ${params.currentPage} 页`);
 };
 
 const handleDataChange = (params: any) => {

@@ -92,7 +92,7 @@
 
     <!-- ===== 分页组件 ===== -->
     <div class="pagination" v-if="pagination">
-      <vxe-pager
+      <!-- <vxe-pager
         v-model:current-page="internalCurrentPage"
         v-model:page-size="internalPageSize"
         :page-sizes="pageSizes"
@@ -101,6 +101,17 @@
         size="small"
         background
         @page-change="handlePageChange"
+      /> -->
+      <el-pagination
+        :current-page="currentPage"
+        :page-size="pageSize"
+        :page-sizes="pageSizes"
+        :total="total"
+        :layout="'total, sizes, prev, pager, next, jumper'"
+        @size-change="handlePageSizeChange"
+        @current-change="handleCurrentChange"
+        :size="'small'"
+        background
       />
     </div>
   </div>
@@ -1165,7 +1176,20 @@ const handleCellClick = (params: any) => {
 };
 
 /**
- * 分页变化事件
+ * element-plus 分页组件变化事件
+ */
+const handlePageSizeChange = (val: number): void => {
+  emit("update:pageSize", val);
+  emit("pagination-change", { pageSize: val, currentPage: props.currentPage });
+};
+
+const handleCurrentChange = (val: number): void => {
+  emit("update:currentPage", val);
+  emit("pagination-change", { pageSize: props.pageSize, currentPage: val });
+};
+
+/**
+ * vxe-pager分页变化事件
  */
 const handlePageChange = (params: {
   currentPage: number;
@@ -1502,19 +1526,94 @@ watch(
     }
   }
 }
+// vxe-pager 分页样式
+// .pagination {
+//   display: flex;
+//   justify-content: flex-end;
+//   margin-top: 10px;
+//   flex-shrink: 0;
 
+//   :deep(.vxe-pager) {
+//     .vxe-pager--btn {
+//       border-radius: 4px;
+//       &.is-active {
+//         background: linear-gradient(135deg, #05456e 0%, #4096cc 100%);
+//         color: #fff;
+//       }
+//     }
+//   }
+// }
+// ==================== element-plus分页样式 ====================
 .pagination {
   display: flex;
   justify-content: flex-end;
   margin-top: 10px;
   flex-shrink: 0;
 
-  :deep(.vxe-pager) {
-    .vxe-pager--btn {
+  // 穿透修改 el-pagination 样式
+  :deep(.el-pagination) {
+    background: #fff;
+    padding: 4px 4px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    // 可加轻微边框或阴影
+    // border: 1px solid #e2e8f0;
+    // box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+
+    // 上一页、下一页按钮
+    .btn-prev,
+    .btn-next {
       border-radius: 4px;
-      &.is-active {
-        background: linear-gradient(135deg, #05456e 0%, #4096cc 100%);
-        color: #fff;
+      border: 1px solid #dcdfe6;
+      background: #fff;
+      margin: 0 2px;
+      transition: all 0.2s;
+      &:hover:not(.is-disabled):not([disabled]) {
+        color: #409eff;
+        border-color: #409eff;
+        background: #ecf5ff;
+      }
+      // 禁用状态统一样式（包含类或属性）
+      &.is-disabled,
+      &[disabled] {
+        opacity: 0.9;
+        cursor: not-allowed;
+        // border-color: #e4e7ed; // 更淡的灰色边框
+      }
+    }
+
+    // 页码列表容器
+    .el-pager {
+      display: flex;
+      gap: 4px; // 按钮间距
+      li {
+        border-radius: 4px;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        text-align: center;
+        cursor: pointer;
+        &:hover:not(.is-active):not(.more) {
+          background: #f0f5ff;
+          color: #409eff;
+          border-color: #c6e2ff;
+        }
+        &.is-active {
+          // background: linear-gradient(135deg, #05456e 0%, #4096cc 100%);
+          color: #fff;
+          // box-shadow: 0 2px 6px rgba(64, 158, 255, 0.3);
+          border-color: transparent;
+          cursor: default;
+        }
+        // 省略号（more）样式
+        &.more {
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          color: #606266;
+          &:hover {
+            color: #409eff;
+          }
+        }
       }
     }
   }
