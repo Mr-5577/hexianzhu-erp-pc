@@ -231,8 +231,12 @@ export interface VxeTableColumn {
   multiple?: boolean;
 
   // ===== 数字输入相关 =====
-  /** 数字精度（小数位数） */
-  precision?: number;
+  /** 数字间隔 */
+  step?: number;
+  /** 数字输入类型：'number' | 'integer' | 'float'，默认 'float' */
+  numberType?: "number" | "integer" | "float";
+  /** 小数位数（当numberType设置为float时才生效） */
+  digits?: number;
   /** 最小值，仅 number 类型有效 */
   min?: number;
   /** 最大值，仅 number 类型有效 */
@@ -708,10 +712,15 @@ const getEditRender = (col: VxeTableColumn): any => {
         name: "VxeNumberInput",
         props: {
           ...commonProps,
-          step: col.precision ? Math.pow(0.1, col.precision) : 1,
-          precision: col.precision, // 控制小数位数
-          min: col.min || 0,
+          step: col.step ? col.step : 1, // 数字间隔
+          type: col.numberType || 'float', // 默认 float
+          digits: col.digits ?? 2, // 控制小数位数,仅当 type='float' 时生效
+          min: col.min ?? 0,
           max: col.max,
+          // 控制按钮配置项
+          controlConfig: {
+            enabled: false, // 不启用增减按钮
+          },
         },
       };
     }
