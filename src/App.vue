@@ -6,6 +6,10 @@
 <script setup lang="ts"></script>
 
 <style lang="scss">
+// 设置 vxe-ui 全局字体
+:root {
+  --vxe-ui-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
 * {
   margin: 0;
   padding: 0;
