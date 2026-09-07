@@ -8,7 +8,14 @@
 <style lang="scss">
 // 设置 vxe-ui 全局字体
 :root {
-  --vxe-ui-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --vxe-ui-font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --vxe-ui-table-header-background-color: #f8f8f9;
+  --vxe-ui-table-header-color: #515a6e;
+  --vxe-ui-table-header-font-weight: 600;
+  --vxe-ui-table-body-font-size: 13px;
+  --vxe-ui-table-body-color: #606266;
 }
 * {
   margin: 0;

@@ -739,7 +739,7 @@ const createHeaderWithTip = (title: string, tipConfig: HeaderTipConfig) => {
  */
 const getEditRender = (col: VxeTableColumn): any => {
   const commonProps = {
-    size: "small",
+    size: "mini",
     placeholder: col.placeholder || "",
     disabled: col.disabled,
   };
@@ -767,8 +767,8 @@ const getEditRender = (col: VxeTableColumn): any => {
           step: col.step ? col.step : 1, // 数字间隔
           type: col.numberType || "float", // 默认 float
           digits: col.digits ?? 2, // 控制小数位数,仅当 type='float' 时生效
-          min: col.min ?? 0,
-          max: col.max,
+          min: col.min, // 最小值
+          max: col.max, // 最大值
           // 控制按钮配置项
           controlConfig: {
             enabled: false, // 不启用增减按钮
@@ -1413,14 +1413,14 @@ watch(
     height: 100%;
 
     .vxe-table {
-      .vxe-header {
+      .vxe-table--header-wrapper {
         background-color: #f8f8f9;
 
-        .vxe-header-column {
+        .vxe-header--column {
           .vxe-cell {
             color: #515a6e;
             font-weight: 600;
-            font-size: 13px;
+            font-size: 14px;
           }
 
           // 表头提示图标样式
@@ -1446,8 +1446,8 @@ watch(
         }
       }
 
-      .vxe-body {
-        .vxe-body-row {
+      .vxe-table--body-wrapper {
+        .vxe-body--row {
           &.row--current {
             background-color: #e0ecfc !important;
           }
@@ -1457,17 +1457,17 @@ watch(
               background-color: #f0f5ff !important;
             }
           }
-
-          .vxe-body-column {
-            font-size: 13px;
-            color: #606266;
+          // 单元格样式
+          .vxe-body--column {
+            font-size: 14px;
+            color: #4c4d4e;
           }
         }
       }
       // 可点击单元格样式
       .clickable-cell {
         cursor: pointer;
-        color: #1890ff;
+        color: #1890ff !important;
 
         &:hover {
           text-decoration: underline;
