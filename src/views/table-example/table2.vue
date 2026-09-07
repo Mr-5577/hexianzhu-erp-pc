@@ -133,7 +133,7 @@ const columns: VxeTableColumn[] = [
     title: "申请日期",
     width: 120,
     editable: true,
-    editType: "date",
+    editType: "month",
     placeholder: "请选择日期",
   },
 ];

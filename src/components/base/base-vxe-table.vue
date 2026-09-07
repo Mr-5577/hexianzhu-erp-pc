@@ -217,6 +217,7 @@ export interface VxeTableColumn {
     | "select" // 下拉选择器
     | "number" // 数字输入框
     | "date" // 日期选择器
+    | "month" // 月份选择器
     | "switch" // 开关
     | "textarea" // 文本域
     | "cascader"; // 级联选择器
@@ -782,8 +783,21 @@ const getEditRender = (col: VxeTableColumn): any => {
         name: "VxeDatePicker",
         props: {
           ...commonProps,
+          type: "date",
           format: "yyyy-MM-dd",
           valueFormat: "yyyy-MM-dd",
+        },
+      };
+    }
+
+    case "month": {
+      return {
+        name: "VxeDatePicker",
+        props: {
+          ...commonProps,
+          type: "month",
+          format: "yyyy-MM",
+          valueFormat: "yyyy-MM",
         },
       };
     }
