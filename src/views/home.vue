@@ -32,6 +32,9 @@
       <el-tab-pane label="列表-不编辑" name="table9" style="height: 100%">
         <table9 />
       </el-tab-pane>
+      <el-tab-pane label="树形列表-虚拟滚动" name="table10" style="height: 100%">
+        <table10 />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -47,6 +50,7 @@ import table6 from "./table-example/table6.vue";
 import table7 from "./table-example/table7.vue";
 import table8 from "./table-example/table8.vue";
 import table9 from "./table-example/table9.vue";
+import table10 from "./table-example/table10.vue";
 
 const inputValue = ref("");
 

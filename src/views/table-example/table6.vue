@@ -2,18 +2,14 @@
 <template>
   <div class="demo-page">
     <base-vxe-table
-      v-model="tableData"
+      v-model="allData"
       :columns="columns"
       row-key="id"
       :border="true"
       :stripe="true"
       :show-toolbar="true"
-      :pagination="true"
-      :total="total"
-      :page-size="pageSize"
-      :current-page="currentPage"
-      :page-sizes="[10, 20, 50]"
-      @pagination-change="handlePageChange"
+      :virtual-scroll="true"
+      :pagination="false"
       @selection-change="handleSelectionChange"
       @refresh="handleRefresh"
     >
@@ -90,81 +86,40 @@ import { Plus, Download, Search } from "@element-plus/icons-vue";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
 
-// ===== 静态数据 =====
-const allData = ref([
-  {
-    id: 1,
-    contractNo: "HT-2024-001",
-    contractName: "幕墙工程施工合同",
-    supplier: "中建幕墙有限公司",
-    amount: 12500000,
-    status: 1,
-  },
-  {
-    id: 2,
-    contractNo: "HT-2024-002",
-    contractName: "电梯采购安装合同",
-    supplier: "三菱电梯有限公司",
-    amount: 3800000,
-    status: 1,
-  },
-  {
-    id: 3,
-    contractNo: "HT-2024-003",
-    contractName: "消防系统改造合同",
-    supplier: "华安消防工程公司",
-    amount: 980000,
-    status: 0,
-  },
-  {
-    id: 4,
-    contractNo: "HT-2024-004",
-    contractName: "智能化系统集成合同",
-    supplier: "海康威视科技",
-    amount: 5600000,
-    status: 1,
-  },
-  {
-    id: 5,
-    contractNo: "HT-2024-005",
-    contractName: "园林景观设计合同",
-    supplier: "泛亚景观设计",
-    amount: 280000,
-    status: 0,
-  },
-  {
-    id: 6,
-    contractNo: "HT-2024-006",
-    contractName: "空调设备采购合同",
-    supplier: "格力电器",
-    amount: 1200000,
-    status: 1,
-  },
-  {
-    id: 7,
-    contractNo: "HT-2024-007",
-    contractName: "弱电系统施工合同",
-    supplier: "华为技术",
-    amount: 2300000,
-    status: 1,
-  },
-  {
-    id: 8,
-    contractNo: "HT-2024-008",
-    contractName: "精装修施工合同",
-    supplier: "金螳螂装饰",
-    amount: 8500000,
-    status: 0,
-  },
-]);
-
 const tableData = ref<any[]>([]);
 const selectedRows = ref<any[]>([]);
-const currentPage = ref(1);
-const pageSize = ref(5);
-const total = ref(0);
 const searchKeyword = ref("");
 const filterStatus = ref("");
+
+// ===== 静态数据 =====
+const TEMPLATE_ROWS = [
+  { id: 1, contractNo: 'HT-2024-001', contractName: '幕墙工程施工合同', supplier: '中建幕墙有限公司', amount: 12500000, status: 1 },
+  { id: 2, contractNo: 'HT-2024-002', contractName: '电梯采购安装合同', supplier: '三菱电梯有限公司', amount: 3800000,  status: 1 },
+  { id: 3, contractNo: 'HT-2024-003', contractName: '消防系统改造合同', supplier: '华安消防工程公司', amount: 980000,   status: 0 },
+  { id: 4, contractNo: 'HT-2024-004', contractName: '智能化系统集成合同', supplier: '海康威视科技',   amount: 5600000,  status: 1 },
+  { id: 5, contractNo: 'HT-2024-005', contractName: '园林景观设计合同', supplier: '泛亚景观设计',   amount: 280000,   status: 0 },
+  { id: 6, contractNo: 'HT-2024-006', contractName: '空调设备采购合同', supplier: '格力电器',       amount: 1200000,  status: 1 },
+  { id: 7, contractNo: 'HT-2024-007', contractName: '弱电系统施工合同', supplier: '华为技术',       amount: 2300000,  status: 1 },
+  { id: 8, contractNo: 'HT-2024-008', contractName: '精装修施工合同',   supplier: '金螳螂装饰',     amount: 8500000,  status: 0 },
+];
+const generateData = (count = 200) => {
+  const list: typeof TEMPLATE_ROWS = [];
+  for (let i = 0; i < count; i++) {
+    const tpl: any = TEMPLATE_ROWS[i % TEMPLATE_ROWS.length]; // 循环取模板
+    const seq = i + 1;
+    list.push({
+      id: seq,
+      contractNo: `HT-2024-${String(seq).padStart(3, '0')}`,
+      contractName: tpl.contractName,
+      supplier: tpl.supplier,
+      amount: tpl.amount,
+      // 让 status 分布更自然：约 70% 为 1
+      status: Math.random() < 0.7 ? 1 : 0,
+    });
+  }
+  return list;
+};
+const allData = ref(generateData(200));
 
 // ===== 列配置 =====
 const columns: VxeTableColumn[] = [
@@ -217,50 +172,16 @@ const columns: VxeTableColumn[] = [
   },
 ];
 
-// ===== 筛选和分页 =====
-const filteredData = computed(() => {
-  return allData.value.filter((item) => {
-    // 关键词搜索
-    const matchKeyword =
-      !searchKeyword.value ||
-      item.contractName.includes(searchKeyword.value) ||
-      item.contractNo.includes(searchKeyword.value);
-    // 状态筛选
-    const matchStatus =
-      !filterStatus.value || item.status === Number(filterStatus.value);
-    return matchKeyword && matchStatus;
-  });
-});
-
-const updateTableData = () => {
-  total.value = filteredData.value.length;
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  tableData.value = filteredData.value.slice(start, end);
-};
-
-// ===== 事件处理 =====
-const handlePageChange = (params: {
-  currentPage: number;
-  pageSize: number;
-}) => {
-  currentPage.value = params.currentPage;
-  pageSize.value = params.pageSize;
-  updateTableData();
-};
-
 const handleSelectionChange = (selection: any[]) => {
   selectedRows.value = selection;
 };
 
 const handleRefresh = () => {
   ElMessage.success("刷新成功");
-  updateTableData();
 };
 
 const handleSearch = () => {
-  currentPage.value = 1;
-  updateTableData();
+  console.log("搜索")
 };
 
 const handleAdd = () => {
@@ -273,7 +194,6 @@ const handleAdd = () => {
     amount: 0,
     status: 1,
   });
-  updateTableData();
   ElMessage.success("新增成功");
 };
 
@@ -288,7 +208,6 @@ const handleBatchDelete = () => {
       const ids = selectedRows.value.map((r) => r.id);
       allData.value = allData.value.filter((item) => !ids.includes(item.id));
       selectedRows.value = [];
-      updateTableData();
       ElMessage.success("删除成功");
     })
     .catch(() => {});
@@ -298,14 +217,6 @@ const handleExport = () => {
   ElMessage.success("导出成功");
 };
 
-// ===== 监听筛选变化 =====
-watch([searchKeyword, filterStatus], () => {
-  currentPage.value = 1;
-  updateTableData();
-});
-
-// ===== 初始化 =====
-updateTableData();
 </script>
 
 <style scoped>

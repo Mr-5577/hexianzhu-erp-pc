@@ -1,8 +1,8 @@
 <!-- 示例3：树形表格（修正版） -->
 <template>
   <div class="demo-page">
-    <h3>🌳 项目树形结构</h3>
-    <div style="margin-bottom: 12px">
+    <h3>🌳 项目树形结构（无虚拟滚动）</h3>
+    <div style="margin-top: 12px">
       <el-button size="small" @click="expandAll">展开全部</el-button>
       <el-button size="small" @click="collapseAll">收起全部</el-button>
       <el-button size="small" @click="expandToLevel(1)">展开到第1层</el-button>
@@ -19,8 +19,6 @@
       :show-toolbar="true"
       :pagination="false"
       :height="'500px'"
-      :virtual-scroll="true"
-      :virtual-threshold="20"
       :tree-config="{
         childrenField: 'children', // ✅ 使用 childrenField（v4 语法）
         expandAll: false,
@@ -55,145 +53,197 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
 
+interface TreeNode {
+  id: number;
+  name: string;
+  status: string;
+  budget: number;
+  manager: string;
+  children?: TreeNode[];
+}
+/**
+ * 生成树形结构数据
+ * @param rootCount 根节点数量（建议 5~6）
+ * @param maxDepth 最大深度（建议 6）
+ * @param childCount 每层平均子节点数（可动态变化）
+ * @param totalTarget 目标总节点数（约 600~700）
+ * @returns 树形数组
+ */
+function generateTreeData(
+  rootCount = 6,
+  maxDepth = 6,
+  childCount = 3,
+  totalTarget = 650,
+): TreeNode[] {
+  let idCounter = 0;
+  const result: TreeNode[] = [];
+
+  // 随机状态
+  const statuses = ["待启动", "进行中", "已完成"];
+  const managers = [
+    "张明",
+    "李强",
+    "王刚",
+    "刘伟",
+    "陈志",
+    "赵岩",
+    "孙阳",
+    "周平",
+    "吴华",
+    "郑杰",
+    "钱丽",
+    "冯志",
+    "杨璐",
+    "高华",
+    "黄海",
+    "林峰",
+    "何欣",
+  ];
+  const namePrefixes = [
+    "项目",
+    "工程",
+    "标段",
+    "区块",
+    "阶段",
+    "任务",
+    "子项",
+    "工作包",
+    "节点",
+    "单元",
+  ];
+  const nameSuffixes = [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+  ];
+
+  let currentTotal = 0;
+
+  function randomItem<T>(arr: T[]): T {
+    if (arr.length === 0) {
+      throw new Error("randomItem: 数组不能为空");
+    }
+    return arr[Math.floor(Math.random() * arr.length)]!;
+  }
+
+  function randomInt(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function generateNode(depth: number): TreeNode {
+    const node: TreeNode = {
+      id: ++idCounter,
+      name: `${randomItem(namePrefixes)}${randomItem(nameSuffixes)}-${idCounter}`,
+      status: randomItem(statuses),
+      budget: randomInt(500000, 5000000),
+      manager: randomItem(managers),
+    };
+
+    // 如果未达到最大深度且当前总节点数未达到目标，且有概率生成子节点
+    if (depth < maxDepth && currentTotal < totalTarget) {
+      // 动态计算子节点数量：越深子节点越少，但保持总数
+      let childrenCount = 0;
+      if (depth < 2) {
+        childrenCount = randomInt(2, 4);
+      } else if (depth < 4) {
+        childrenCount = randomInt(1, 3);
+      } else {
+        childrenCount = randomInt(0, 2);
+      }
+      // 若当前节点是叶子，则不再继续
+      if (childrenCount > 0) {
+        const children: TreeNode[] = [];
+        for (let i = 0; i < childrenCount; i++) {
+          if (currentTotal >= totalTarget) break;
+          const child = generateNode(depth + 1);
+          children.push(child);
+          currentTotal++;
+        }
+        if (children.length > 0) {
+          node.children = children;
+        }
+      }
+    }
+    return node;
+  }
+
+  // 生成根节点
+  for (let i = 0; i < rootCount; i++) {
+    if (currentTotal >= totalTarget) break;
+    const root = generateNode(1);
+    result.push(root);
+    currentTotal++;
+  }
+
+  // 如果未达到目标数，补充一些根节点或子节点（简单再生成几个根节点）
+  while (currentTotal < totalTarget) {
+    // 随机挑一个已有节点追加子节点（简单策略）
+    const allNodes: TreeNode[] = [];
+    function collect(node: TreeNode) {
+      allNodes.push(node);
+      if (node.children) {
+        node.children.forEach(collect);
+      }
+    }
+    result.forEach(collect);
+    const targetParent = allNodes[Math.floor(Math.random() * allNodes.length)];
+    if (
+      targetParent &&
+      targetParent.children &&
+      targetParent.children.length < 5
+    ) {
+      // 追加一个子节点
+      const child = generateNode(getDepth(targetParent, 1) + 1);
+      if (targetParent.children) {
+        targetParent.children.push(child);
+      } else {
+        targetParent.children = [child];
+      }
+      currentTotal++;
+    } else {
+      // 如果没有可追加的，直接加一个根节点
+      const newRoot = generateNode(1);
+      result.push(newRoot);
+      currentTotal++;
+    }
+  }
+
+  function getDepth(node: TreeNode, currentDepth: number): number {
+    if (!node.children || node.children.length === 0) return currentDepth;
+    let maxDepth = currentDepth;
+    node.children.forEach((child) => {
+      const d = getDepth(child, currentDepth + 1);
+      if (d > maxDepth) maxDepth = d;
+    });
+    return maxDepth;
+  }
+
+  return result;
+}
 // ===== 树形静态数据 =====
-const treeData = ref([
-  {
-    id: 1,
-    name: "成都金融城项目",
-    status: "进行中",
-    budget: 150000000,
-    manager: "张明",
-    children: [
-      {
-        id: 11,
-        name: "土建工程",
-        status: "已完成",
-        budget: 45000000,
-        manager: "李强",
-        children: [
-          {
-            id: 111,
-            name: "地基施工",
-            status: "已完成",
-            budget: 12000000,
-            manager: "王刚",
-          },
-          {
-            id: 112,
-            name: "主体结构",
-            status: "已完成",
-            budget: 23000000,
-            manager: "刘伟",
-          },
-          {
-            id: 113,
-            name: "砌体工程",
-            status: "进行中",
-            budget: 10000000,
-            manager: "陈志",
-          },
-        ],
-      },
-      {
-        id: 12,
-        name: "安装工程",
-        status: "进行中",
-        budget: 35000000,
-        manager: "赵岩",
-        children: [
-          {
-            id: 121,
-            name: "机电安装",
-            status: "进行中",
-            budget: 15000000,
-            manager: "孙阳",
-          },
-          {
-            id: 122,
-            name: "电梯安装",
-            status: "待启动",
-            budget: 8000000,
-            manager: "周平",
-          },
-          {
-            id: 123,
-            name: "消防工程",
-            status: "进行中",
-            budget: 12000000,
-            manager: "吴华",
-          },
-        ],
-      },
-      {
-        id: 13,
-        name: "装饰装修",
-        status: "待启动",
-        budget: 28000000,
-        manager: "郑杰",
-        children: [
-          {
-            id: 131,
-            name: "外墙装饰",
-            status: "待启动",
-            budget: 12000000,
-            manager: "钱丽",
-          },
-          {
-            id: 132,
-            name: "室内精装",
-            status: "待启动",
-            budget: 16000000,
-            manager: "冯志",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: "天府新区孵化园",
-    status: "已完成",
-    budget: 80000000,
-    manager: "杨璐",
-    children: [
-      {
-        id: 21,
-        name: "A栋办公楼",
-        status: "已完成",
-        budget: 35000000,
-        manager: "高华",
-        children: [
-          {
-            id: 211,
-            name: "标准层装修",
-            status: "已完成",
-            budget: 15000000,
-            manager: "黄海",
-          },
-          {
-            id: 212,
-            name: "大堂及公区",
-            status: "已完成",
-            budget: 8000000,
-            manager: "林峰",
-          },
-        ],
-      },
-      {
-        id: 22,
-        name: "B栋研发中心",
-        status: "已完成",
-        budget: 28000000,
-        manager: "何欣",
-      },
-    ],
-  },
-]);
+const treeData: any = ref([]);
 
 // ===== 列配置 =====
 const columns: VxeTableColumn[] = [
@@ -258,6 +308,12 @@ const handleDataChange = (params: any) => {
   console.log("数据变化:", params);
   ElMessage.success(`"${params.field}" 已更新`);
 };
+onMounted(() => {
+  // 生成约 650 条数据，6 个根节点，深度约 6 层
+  const data = generateTreeData(6, 6, 3, 650);
+  // 设置树形表格的数据
+  treeData.value = data;
+});
 </script>
 
 <style scoped>

@@ -1,7 +1,7 @@
 <!-- 示例1：基础表格 -->
 <template>
   <div class="demo-page">
-    <h3>📋 合同列表（基础编辑）</h3>
+    <h3>📋 合同列表（基础编辑）扁平数据虚拟滚动</h3>
     <base-vxe-table
       v-model="tableData"
       :columns="columns"
@@ -11,6 +11,8 @@
       :show-toolbar="true"
       :pagination="false"
       :show-footer="true"
+      :virtual-scroll="true"
+      :virtual-threshold="20"
       :height="'400px'"
       @data-change="handleDataChange"
       @selection-change="handleSelectionChange"
@@ -27,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
@@ -43,43 +45,22 @@ const tableData = ref([
     taxRate: 9,
     status: 1,
   },
-  {
-    id: 2,
-    contractNo: "HT-2024-002",
-    contractName: "电梯采购安装合同",
-    supplier: "三菱电梯有限公司",
-    amount: 3800000,
-    taxRate: 13,
-    status: 1,
-  },
-  {
-    id: 3,
-    contractNo: "HT-2024-003",
-    contractName: "消防系统改造合同",
-    supplier: "华安消防工程公司",
-    amount: 980000,
-    taxRate: 6,
-    status: 0,
-  },
-  {
-    id: 4,
-    contractNo: "HT-2024-004",
-    contractName: "智能化系统集成合同",
-    supplier: "海康威视科技",
-    amount: 5600000,
-    taxRate: 6,
-    status: 1,
-  },
-  {
-    id: 5,
-    contractNo: "HT-2024-005",
-    contractName: "园林景观设计合同",
-    supplier: "泛亚景观设计",
-    amount: 280000,
-    taxRate: 3,
-    status: 0,
-  },
 ]);
+
+const initTable = () => {
+  let id = 111;
+  for (let p = 1; p <= 200; p++) {
+    tableData.value.push({
+      id: ++id,
+      contractNo: "HT-2024-005",
+      contractName: "园林景观设计合同",
+      supplier: "泛亚景观设计",
+      amount: 280000,
+      taxRate: 3,
+      status: 0,
+    });
+  }
+};
 
 // ===== 列配置 =====
 const columns: VxeTableColumn[] = [
@@ -152,6 +133,11 @@ const handleSelectionChange = (selection: any[]) => {
 const handleRefresh = () => {
   ElMessage.info("刷新数据");
 };
+
+onMounted(() => {
+  tableData.value = []
+  initTable();
+});
 </script>
 
 <style scoped>
