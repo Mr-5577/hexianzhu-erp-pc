@@ -393,6 +393,15 @@ interface Props {
     newValue: any;
     oldValue: any;
   }) => Promise<void> | void;
+
+  // ===== 合并单元格 =====
+  /** 合并单元格方法，透传给 vxe-grid 的 span-method */
+  spanMethod?: (params: {
+    row: any;
+    rowIndex: number;
+    column: any;
+    columnIndex: number;
+  }) => { rowspan: number; colspan: number } | void;
 }
 
 /**
@@ -646,6 +655,8 @@ const gridOptions = computed<VxeGridProps>(() => ({
       : props.footerMethod || defaultFooterMethod,
   // 👇 合并默认合计行样式，外部可覆盖
   footerRowConfig: props.footerRowConfig,
+  // 👇 把合并方法传给 vxe-grid
+  spanMethod: props.spanMethod as any,
 }));
 
 // ============================================================================
@@ -1462,6 +1473,7 @@ watch(
 
       .vxe-table--body-wrapper {
         .vxe-body--row {
+          height: 30px !important;
           &.row--current {
             background-color: #e0ecfc !important;
           }
@@ -1473,8 +1485,17 @@ watch(
           }
           // 单元格样式
           .vxe-body--column {
+            height: 30px !important;
             font-size: 14px;
             color: #4c4d4e;
+          }
+        }
+        .vxe-body--column {
+          height: 30px !important;
+          .vxe-cell {
+            height: 100% !important;
+            min-height: 30px !important;
+            max-height: 30px !important;
           }
         }
       }
