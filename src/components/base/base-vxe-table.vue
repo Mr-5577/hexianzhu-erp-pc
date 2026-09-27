@@ -16,7 +16,7 @@
  *
  * 使用示例：
  *   <base-vxe-table
- *     v-model:tableData="tableData"
+ *     v-model="tableData"
  *     :columns="columns"
  *     row-key="id"
  *     :edit-config="{ trigger: 'click', mode: 'cell' }"
@@ -76,6 +76,8 @@
         :show-overflow="true"
         @checkbox-change="handleCheckboxChange"
         @checkbox-all="handleCheckboxAll"
+        @radio-change="handleRadioChange"
+        @edit-actived="handleEditActived"
         @edit-closed="handleEditClosed"
         @cell-click="handleCellClick"
       >
@@ -295,10 +297,8 @@ export interface VxeTableColumn {
  */
 interface Props {
   // ===== 数据 =====
-  /** 表格数据（推荐使用 v-model:tableData 绑定） */
+  /** 表格数据（推荐使用 v-model=tableData 绑定） */
   modelValue?: any[];
-  /** 表格数据（兼容旧版，推荐使用 modelValue） */
-  tableData?: any[];
   /** 列配置，定义了表格的结构和行为 */
   columns: VxeTableColumn[];
   /** 行数据的唯一标识字段，用于选中、编辑等场景，默认 'id' */
@@ -377,10 +377,6 @@ interface Props {
   /** 合计行样式（固定/浮动等） */
   footerRowConfig?: { className?: string; style?: any };
 
-  // ===== 选择模式 =====
-  /** 选择模式：single（单选）| multiple（多选），默认 multiple */
-  selectionMode?: "single" | "multiple";
-
   // ===== 数据字典 =====
   /** 数据字典对象，用于将值映射为显示文本 */
   dictData?: Record<string, Array<{ label: string; value: any }>>;
@@ -390,15 +386,6 @@ interface Props {
   virtualScroll?: boolean;
   /** 虚拟滚动阈值，超过该数量启用虚拟滚动，默认 100 */
   virtualThreshold?: number;
-
-  // ===== 保存回调 =====
-  /** 数据保存回调，在单元格编辑完成时触发 */
-  onSave?: (params: {
-    row: any;
-    field: string;
-    newValue: any;
-    oldValue: any;
-  }) => Promise<void> | void;
 
   // ===== 合并单元格 =====
   /** 合并单元格方法，透传给 vxe-grid 的 span-method */
@@ -416,8 +403,6 @@ interface Props {
 interface Emits {
   /** 更新表格数据（v-model:tableData） */
   (e: "update:modelValue", data: any[]): void;
-  /** 更新表格数据（兼容旧版） */
-  (e: "update:tableData", data: any[]): void;
   /** 更新当前页码 */
   (e: "update:currentPage", page: number): void;
   /** 更新每页条数 */
@@ -449,7 +434,6 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: () => [],
-  tableData: () => [],
   rowKey: "id",
   loading: false,
   pagination: false,
@@ -488,7 +472,6 @@ const props = withDefaults(defineProps<Props>(), {
   editMode: "cell",
   border: true,
   stripe: false,
-  selectionMode: "multiple",
   readonly: false,
   virtualScroll: false,
   virtualThreshold: 100,
@@ -518,10 +501,7 @@ const selectedRows = ref<any[]>([]);
  * 这样既支持 v-model 也支持传统的 prop 传递方式。
  */
 const actualData = computed(() => {
-  if (props.modelValue !== undefined) {
-    return props.modelValue;
-  }
-  return props.tableData;
+  return props.modelValue;
 });
 
 /**
@@ -630,10 +610,11 @@ const columnConfig = computed(() => ({
 /**
  * 编辑配置
  *
- * 当 disabled 为 true 时，禁用所有编辑功能
- * trigger: 编辑触发方式
- * mode: 编辑模式（行/单元格）
- * showStatus: 显示编辑状态
+ * 当 readonly 为 true 时，禁用所有编辑功能
+ * trigger: 编辑触发方式：manual（手动触发方式，只能用于 mode=row）,click（点击触发编辑）,dblclick（双击触发编辑）
+ * enabled: 是否启用编辑功能
+ * mode: 编辑模式：cell（单元格编辑模式）,row（行编辑模式）
+ * showStatus: 显示编辑状态，只对 keep-source 开启有效
  * autoClear: 是否自动清除编辑状态
  */
 const editConfig: any = computed(() => {
@@ -642,6 +623,7 @@ const editConfig: any = computed(() => {
   }
   return {
     trigger: props.editTrigger,
+    enabled: true,
     mode: props.editMode,
     showStatus: true,
     autoClear: true,
@@ -1153,42 +1135,72 @@ const defaultFooterMethod = ({ data }: { data: any[] }) => {
 // ============================================================================
 
 /**
+ * 编辑前的值快照
+ * key = `${rowKey}_${field}`  value = 编辑前的值（对象类型会深拷贝）
+ */
+const editSnapshot = new Map<string, any>();
+
+/**
+ * 单元格进入编辑状态：记录旧值
+ */
+const handleEditActived = ({ row, column }: any) => {
+  if (!column?.field) return;
+  const key = `${row[props.rowKey]}_${column.field}`;
+  const value = row[column.field];
+  // 对象/数组要深拷贝，否则 vxe 直接改 row 会污染快照
+  editSnapshot.set(
+    key,
+    value !== null && typeof value === "object"
+      ? JSON.parse(JSON.stringify(value))
+      : value,
+  );
+};
+
+/**
  * 编辑关闭事件处理
  *
  * 当用户完成单元格编辑并确认（如点击其他地方或按 Enter）时触发。
  * 这是数据同步的关键：将内部数据的变化同步到外部。
  *
- * @param params 事件参数，包含行、列、新值、旧值等
+ * @param params 事件参数，包含行、列等
  */
 const handleEditClosed = (params: any) => {
-  const { row, column, cellValue, oldCellValue } = params;
-  // 仅当值确实发生变化时才触发更新
-  if (cellValue !== oldCellValue) {
-    // 复制内部数据，触发响应式更新
+  const { row, rowIndex, column, columnIndex, $event } = params; // 获取单元格的值
+  if (!column?.field) return;
+
+  const field = column.field;
+  const key = `${row[props.rowKey]}_${field}`;
+  const oldValue = editSnapshot.get(key);
+  // 清理快照，避免内存泄漏
+  editSnapshot.delete(key);
+
+  const newValue = row[field];
+
+  // 深度比较（对象类型需要）
+  const isEqual =
+    newValue === oldValue ||
+    (newValue !== null &&
+      typeof newValue === "object" &&
+      JSON.stringify(newValue) === JSON.stringify(oldValue));
+
+  // 当值发生变化时才触发更新
+  if (!isEqual) {
     const newData = [...internalData.value];
-    // 通知外部数据变化
+
+    // 更新数据
     emit("update:modelValue", newData);
-    emit("update:tableData", newData);
+
+    // data-change 事件
     emit("data-change", {
       row,
-      field: column.field,
-      newValue: cellValue,
-      oldValue: oldCellValue,
+      field,
+      newValue,
+      oldValue,
     });
-    // 调用外部保存回调
-    if (props.onSave) {
-      props.onSave({
-        row,
-        field: column.field,
-        newValue: cellValue,
-        oldValue: oldCellValue,
-      });
-    }
-    // 合计行数据更新（若显示合计）
+
+    // 合计行刷新
     if (props.showFooter) {
-      nextTick(() => {
-        gridRef.value?.updateFooter?.();
-      });
+      nextTick(() => gridRef.value?.updateFooter?.());
     }
   }
 };
@@ -1208,6 +1220,15 @@ const handleCheckboxChange = (params: any) => {
 const handleCheckboxAll = (params: any) => {
   const selection = gridRef.value?.getCheckboxRecords?.() || [];
   selectedRows.value = selection;
+  emit("selection-change", selectedRows.value);
+};
+
+/**
+ * 单选框选择变化
+ */
+const handleRadioChange = (_params: any) => {
+  const record = gridRef.value?.getRadioRecord?.() || null;
+  selectedRows.value = record ? [record] : [];
   emit("selection-change", selectedRows.value);
 };
 
@@ -1291,6 +1312,7 @@ const handleRefresh = () => {
  */
 const clearSelection = () => {
   gridRef.value?.clearCheckboxRow();
+  gridRef.value?.clearRadioRow?.();
   selectedRows.value = [];
 };
 
@@ -1403,19 +1425,6 @@ onMounted(() => {
     nextTick(() => gridRef.value?.updateFooter?.());
   }
 });
-
-// 监听外部数据变化，重新同步到内部
-watch(
-  () => actualData.value,
-  (newData) => {
-    if (newData && newData.length > 0) {
-      internalData.value = [...newData];
-    } else {
-      internalData.value = [];
-    }
-  },
-  { deep: false },
-);
 
 // watch 内部数据变化时刷新合计（数据编辑后自动更新）
 watch(
