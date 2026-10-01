@@ -1,13 +1,14 @@
 <!-- 示例1：基础表格 -->
 <template>
   <div class="demo-page">
-    <h3>📋 合同列表（基础编辑）扁平数据虚拟滚动</h3>
+    <h3 @click="readonly = !readonly">📋 合同列表（基础编辑）扁平数据虚拟滚动</h3>
     <base-vxe-table
       v-model="tableData"
       :columns="columns"
       row-key="id"
       :border="true"
       :stripe="true"
+      :readonly="readonly"
       :show-toolbar="true"
       :pagination="false"
       :show-footer="true"
@@ -34,12 +35,15 @@ import { ElMessage } from "element-plus";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
 
+
+const readonly = ref(false)
+
 // ===== 静态数据 =====
 const tableData = ref([
   {
     id: 1,
     contractNo: "HT-2024-001",
-    contractName: "幕墙工程施工合同",
+    contractName: "幕墙工程施工合同123",
     supplier: "中建幕墙有限公司",
     amount: 12500000,
     taxRate: 9,
@@ -82,12 +86,13 @@ const columns: VxeTableColumn[] = [
     editable: true,
     editType: "input",
     placeholder: "请输入合同名称",
+    disabled: (row) => row?.id === 112,
   },
   {
     field: "supplier",
     title: "供应商",
     width: 180,
-    editable: true,
+    editable: false, // 整列不可编辑
     editType: "input",
     placeholder: "请输入供应商名称",
   },
@@ -135,7 +140,6 @@ const handleRefresh = () => {
 };
 
 onMounted(() => {
-  tableData.value = []
   initTable();
 });
 </script>

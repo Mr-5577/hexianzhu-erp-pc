@@ -89,6 +89,11 @@
         <template v-for="(_, name) in $slots" :key="name" #[name]="scope">
           <slot :name="name" v-bind="scope" />
         </template>
+
+        <!-- 空数据状态 -->
+        <template #empty>
+            <el-empty :image-size="80" description="暂无数据" />
+        </template>
       </vxe-grid>
     </div>
 
@@ -129,6 +134,7 @@ import {
   resolveComponent,
   nextTick,
 } from "vue";
+import { ElMessage } from "element-plus";
 import { Refresh } from "@element-plus/icons-vue";
 import type { VxeGridInstance, VxeGridProps } from "vxe-table";
 
@@ -233,6 +239,12 @@ export interface VxeTableColumn {
   editable?: boolean;
   /** 禁用状态，支持布尔值或函数 */
   disabled?: boolean | ((row: any) => boolean);
+  /**
+   * 禁用时的提示消息
+   * - string：统一提示
+   * - function：按行动态返回提示（返回空字符串或 null 则不提示）
+   */
+  disabledTip?: string | ((row: any) => string | null | undefined);
   /** 占位符文本 */
   placeholder?: string;
 
@@ -426,6 +438,8 @@ interface Emits {
     e: "cell-click",
     params: { row: any; column: VxeTableColumn; event: Event },
   ): void;
+  /** 行点击事件 */
+  (e: "row-click", params: { row: any; event: Event }): void;
 }
 
 // ============================================================================
@@ -515,17 +529,27 @@ const internalData = ref<any[]>([]);
 /**
  * 监听外部数据变化，同步到内部数据
  *
- * 注意：使用 deep: false 只监听数组本身的变化（替换），
+ * 注意：使用 deep: false 只监听数组本身的变化，
  * 不监听数组内部对象的属性变化，以提高性能。
  */
 watch(
   () => actualData.value,
   (newData) => {
-    if (newData && newData.length > 0) {
-      internalData.value = [...newData];
-    } else {
-      internalData.value = [];
+    // 引用相同 → 编辑回写场景，跳过
+    if (newData === internalData.value) return;
+
+    // 内容相同（浅比较）→ 也跳过，避免无意义重载
+    if (
+      Array.isArray(newData) &&
+      newData.length === internalData.value.length &&
+      newData.every((r, i) => r === internalData.value[i])
+    ) {
+      return;
     }
+
+    // 把新数据直接赋给 internalData，而不是展开复制
+    // 这样 internalData.value 和 props.modelValue 始终是同一引用
+    internalData.value = Array.isArray(newData) ? newData : [];
   },
   { immediate: true, deep: false },
 );
@@ -614,7 +638,7 @@ const columnConfig = computed(() => ({
  * trigger: 编辑触发方式：manual（手动触发方式，只能用于 mode=row）,click（点击触发编辑）,dblclick（双击触发编辑）
  * enabled: 是否启用编辑功能
  * mode: 编辑模式：cell（单元格编辑模式）,row（行编辑模式）
- * showStatus: 显示编辑状态，只对 keep-source 开启有效
+ * showStatus: 显示编辑状态，只对 keepSource 开启有效
  * autoClear: 是否自动清除编辑状态
  */
 const editConfig: any = computed(() => {
@@ -627,6 +651,38 @@ const editConfig: any = computed(() => {
     mode: props.editMode,
     showStatus: true,
     autoClear: true,
+    // 👇 动态校验：由列配置的 disabled 决定
+    beforeEditMethod: ({ row, column }: any) => {
+      // 1. 找到该列在原始 columns 里的配置（支持多级表头递归）
+      const col = findColumnByField(props.columns, column.field);
+      if (!col) return true;
+
+      // 2. 列级开关：editable === false 直接不允许编辑
+      if (col.editable === false) return false;
+
+      // 3. 动态 disabled：函数就调用，布尔就直接用
+      const disabled =
+        typeof col.disabled === "function"
+          ? col.disabled(row)
+          : col.disabled === true;
+      if (disabled) {
+        // 解析提示文案
+        let tip: string | null | undefined;
+        if (typeof col.disabledTip === "function") {
+          tip = col.disabledTip(row);
+        } else {
+          tip = col.disabledTip;
+        }
+        // 有提示才弹
+        if (tip) {
+          ElMessage.warning(tip);
+        }
+        return false;
+      }
+
+      // 4. 默认允许
+      return true;
+    },
   };
 });
 
@@ -782,9 +838,10 @@ const createHeaderWithTip = (title: string, tipConfig: HeaderTipConfig) => {
  */
 const getEditRender = (col: VxeTableColumn): any => {
   const commonProps = {
-    size: "mini",
-    placeholder: col.placeholder || "",
-    disabled: col.disabled,
+    size: "small", // 组件尺寸
+    placeholder: col.placeholder || "", // 占位符文本
+    // disabled: col.disabled, // 是否禁用
+    disabled: false, // 这里在可编辑表格下默认编辑，具体单元格编辑主要通过 beforeEditMethod 方法动态校验
   };
 
   switch (col.editType) {
@@ -1185,10 +1242,8 @@ const handleEditClosed = (params: any) => {
 
   // 当值发生变化时才触发更新
   if (!isEqual) {
-    const newData = [...internalData.value];
-
     // 更新数据
-    emit("update:modelValue", newData);
+    emit("update:modelValue", internalData.value);
 
     // data-change 事件
     emit("data-change", {
@@ -1262,11 +1317,16 @@ const handleCellClick = (params: any) => {
       col.onClick(params.row, col);
     }
   }
-  // 触发全局事件，供父组件监听
+  // 触发单元格点击事件，供父组件监听
   emit("cell-click", {
     row: params.row,
     column: params.column,
-    event: params.event,
+    event: params.$event,
+  });
+  // 触发行点击事件
+  emit("row-click", {
+      row: params.row,
+      event: params.$event,
   });
 };
 
@@ -1316,6 +1376,29 @@ const clearSelection = () => {
   selectedRows.value = [];
 };
 
+// watch 内部数据变化时刷新合计（数据编辑后自动更新）
+watch(
+  () => internalData.value,
+  () => {
+    if (props.showFooter) {
+      nextTick(() => {
+        gridRef.value?.updateFooter?.();
+      });
+    }
+  },
+  { deep: false },
+);
+// ============================================================================
+// 生命周期
+// ============================================================================
+
+onMounted(() => {
+  // 初始化时更新合计
+  if (props.showFooter) {
+    nextTick(() => gridRef.value?.updateFooter?.());
+  }
+});
+
 // ============================================================================
 // 暴露方法（供父组件调用）
 // ============================================================================
@@ -1330,12 +1413,16 @@ const clearSelection = () => {
 defineExpose({
   /** 获取当前编辑后的数据 */
   getData: () => internalData.value,
-  /** 获取原始数据（未编辑的版本） */
-  getOriginalData: () => actualData.value,
+  /** 获取原始数据（未编辑的版本，由 vxe keepSource 维护） */
+  getOriginalData: () => {
+    return gridRef.value?.getTableData?.()?.fullData ?? internalData.value;
+  },
   /** 刷新数据（从外部重新加载） */
   refresh: () => {
-    if (actualData.value) {
-      internalData.value = [...actualData.value];
+    if (actualData.value !== internalData.value) {
+      internalData.value = Array.isArray(actualData.value)
+        ? actualData.value
+        : [];
     }
   },
   /** 更新合计行数据（手动触发重新计算） */
@@ -1411,33 +1498,6 @@ defineExpose({
   /** 取消编辑 */
   cancelEdit: () => gridRef.value?.clearEdit(),
 });
-
-// ============================================================================
-// 生命周期
-// ============================================================================
-
-onMounted(() => {
-  if (actualData.value && actualData.value.length > 0) {
-    internalData.value = [...actualData.value];
-  }
-  // 初始化时更新合计
-  if (props.showFooter) {
-    nextTick(() => gridRef.value?.updateFooter?.());
-  }
-});
-
-// watch 内部数据变化时刷新合计（数据编辑后自动更新）
-watch(
-  () => internalData.value,
-  () => {
-    if (props.showFooter) {
-      nextTick(() => {
-        gridRef.value?.updateFooter?.();
-      });
-    }
-  },
-  { deep: false },
-);
 </script>
 
 <style lang="scss" scoped>
@@ -1566,28 +1626,33 @@ watch(
           text-decoration: underline;
         }
       }
-      // 编辑状态样式
+      
+      // 正在编辑的单元格样式
+      .vxe-body--column.col--active,
       .vxe-cell--edit {
-        .vxe-input,
-        .vxe-select,
-        .vxe-date-picker,
-        .vxe-cascader {
-          .vxe-input--inner {
-            border-radius: 0;
-            border-color: #409eff;
-            height: 28px;
-            padding: 0 8px;
-            font-size: 13px;
-          }
+        .vxe-input .vxe-input--inner {
+          border-radius: 0;
+          border-color: #409eff;
+          height: 30px;
+          padding: 0 8px;
+          font-size: 13px;
         }
 
-        .vxe-textarea {
-          .vxe-textarea--inner {
-            border-radius: 0;
-            border-color: #409eff;
-            font-size: 13px;
-            padding: 4px 8px;
-          }
+        .vxe-select .vxe-input--inner,
+        .vxe-date-picker .vxe-input--inner,
+        .vxe-cascader .vxe-input--inner {
+          border-radius: 0;
+          border-color: #409eff;
+          height: 30px;
+          padding: 0 8px;
+          font-size: 13px;
+        }
+
+        .vxe-textarea .vxe-textarea--inner {
+          border-radius: 0;
+          border-color: #409eff;
+          font-size: 13px;
+          padding: 4px 8px;
         }
 
         .vxe-switch {

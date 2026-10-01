@@ -1,4 +1,4 @@
-<!-- 示例7：完全只读表格 -->
+<!-- 示例7：完全只读表格 + 操作列 -->
 <template>
   <div class="demo-page">
     <h3>📊 经营报表（只读模式）</h3>
@@ -15,8 +15,8 @@
       :stripe="true"
       :show-toolbar="true"
       :pagination="false"
-      @selection-change="handleSelectionChange"
       @cell-click="handleCellClick"
+      @selection-change="handleSelectionChange"
     >
       <!-- 金额格式化 -->
       <template #amount="{ row }">
@@ -31,14 +31,34 @@
           {{ row.status === 1 ? "生效中" : "已终止" }}
         </el-tag>
       </template>
+
+      <!-- 操作列：通用 TableActions 组件 -->
+      <template #action="{ row }">
+        <TableActions
+          :row="row"
+          :actions="actionList"
+          :max-visible="2"
+          @action="handleAction"
+        />
+      </template>
     </base-vxe-table>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
+import {
+  Edit,
+  Delete,
+  View,
+  CopyDocument,
+  Download,
+} from "@element-plus/icons-vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
+import TableActions from "@/components/base/table-actions.vue";
+import type { TableActionItem } from "@/components/base/table-actions.vue";
 
 const tableData = ref([
   {
@@ -83,6 +103,85 @@ const tableData = ref([
   },
 ]);
 
+/** 判断当前行是否可编辑/删除：状态为 0（已终止）时不可操作 */
+const canOperate = (row: any) => row.status !== 0;
+
+/** 操作项配置 */
+const actionList: TableActionItem[] = [
+  {
+    key: "edit",
+    label: "编辑",
+    type: "primary",
+    icon: Edit,
+    disabled: (row) => !canOperate(row),
+  },
+  {
+    key: "detail",
+    label: "详情",
+    type: "primary",
+    icon: View,
+  },
+  {
+    key: "delete",
+    label: "删除",
+    type: "danger",
+    icon: Delete,
+    disabled: (row) => !canOperate(row),
+  },
+  {
+    key: "copy",
+    label: "复制",
+    type: "primary",
+    icon: CopyDocument,
+    alwaysHidden: true,
+  },
+  {
+    key: "export",
+    label: "导出",
+    type: "primary",
+    icon: Download,
+    alwaysHidden: true,
+  },
+];
+
+/** 统一事件分发 */
+const handleAction = ({ key, row }: { key: string; row: any }) => {
+  const map: Record<string, (r: any) => void> = {
+    edit: handleEdit,
+    detail: handleDetail,
+    delete: handleDelete,
+    copy: handleCopy,
+    export: handleExport,
+  };
+  map[key]?.(row);
+};
+
+const handleEdit = (row: any) => {
+  ElMessage.info(`编辑：${row.contractName}`);
+};
+
+const handleDetail = (row: any) => {
+  ElMessage.info(`查看详情：${row.contractName}`);
+};
+
+const handleDelete = (row: any) => {
+  ElMessageBox.confirm(`确认删除「${row.contractName}」吗？`, "提示", {
+    type: "warning",
+  })
+    .then(() => {
+      ElMessage.success("删除成功");
+    })
+    .catch(() => {});
+};
+
+const handleCopy = (row: any) => {
+  ElMessage.success(`已复制：${row.contractNo}`);
+};
+
+const handleExport = (row: any) => {
+  ElMessage.success(`导出：${row.contractNo}`);
+};
+
 const columns: VxeTableColumn[] = [
   { type: "checkbox", width: 50 },
   { type: "seq", width: 60, title: "序号" },
@@ -90,9 +189,8 @@ const columns: VxeTableColumn[] = [
     field: "contractNo",
     title: "合同编号",
     width: 150,
-    // 即使设置了 editable，disabled: true 也会覆盖
     editable: true,
-    clickable: true, // 点击单元格触发 onClick 事件
+    clickable: true,
     onClick: (data) => {
       console.log("点击了合同编号:", data);
     },
@@ -101,28 +199,30 @@ const columns: VxeTableColumn[] = [
     field: "contractName",
     title: "合同名称",
     width: 200,
-    editable: true,
-    clickable: true, // 点击单元格触发 onClick 事件
   },
   {
     field: "supplier",
     title: "供应商",
     width: 180,
-    editable: true,
   },
   {
     field: "amount",
     title: "合同金额",
     width: 150,
     slots: { default: "amount" },
-    editable: true,
   },
   {
     field: "status",
     title: "状态",
     width: 100,
     slots: { default: "status" },
-    editable: true,
+  },
+  {
+    field: "action",
+    title: "操作",
+    width: 190,
+    fixed: "right",
+    slots: { default: "action" },
   },
 ];
 
