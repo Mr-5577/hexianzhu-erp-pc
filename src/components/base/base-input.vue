@@ -193,8 +193,8 @@ const formatValue = (value: any): string | number => {
     }
     // 限制小数位数
     if (props.decimalPlaces !== undefined && formatted.includes('.')) {
-      const parts2 = formatted.split('.');
-      if (parts2.length === 2) {
+      const parts2: any = formatted.split('.');
+      if (parts2 && parts2.length === 2) {
         parts2[1] = parts2[1].slice(0, props.decimalPlaces);
         formatted = parts2.join('.');
       }

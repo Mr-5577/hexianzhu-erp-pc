@@ -221,6 +221,17 @@ const handleFilter = (keyword: string) => {
   emit('search', keyword);
 };
 
+/** 清空选中值（会触发 update:modelValue / clear / search 事件） */
+const clear = () => {
+  // 主动通知父组件把值置空
+  emit('update:modelValue', props.multiple ? [] : undefined)
+  searchKeyword.value = ''
+  emit('clear')
+  if (props.searchOnClear) {
+    emit('search', '')
+  }
+}
+
 // ==================== 暴露方法 ====================
 defineExpose({
   /** 获取焦点 */
@@ -228,15 +239,7 @@ defineExpose({
   /** 失去焦点 */
   blur: () => selectRef.value?.blur(),
   /** 清空选中值（会触发 clear 和 search 事件） */
-  clear: () => {
-    selectRef.value?.clear?.();
-    // 同步触发清空逻辑，让父组件感知
-    searchKeyword.value = '';
-    emit('clear');
-    if (props.searchOnClear) {
-      emit('search', '');
-    }
-  },
+  clear: clear,
   /** 获取当前选项列表 */
   getOptions: () => props.options || [],
   /** 获取当前显示选项（搜索过滤后） */

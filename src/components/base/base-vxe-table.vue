@@ -92,7 +92,7 @@
 
         <!-- 空数据状态 -->
         <template #empty>
-            <el-empty :image-size="80" description="暂无数据" />
+          <el-empty :image-size="80" description="暂无数据" />
         </template>
       </vxe-grid>
     </div>
@@ -620,7 +620,6 @@ const treeConfig = computed(() => {
     accordion: cfg.accordion || false,
   };
 });
-
 
 /**
  * 列配置
@@ -1325,8 +1324,8 @@ const handleCellClick = (params: any) => {
   });
   // 触发行点击事件
   emit("row-click", {
-      row: params.row,
-      event: params.$event,
+    row: params.row,
+    event: params.$event,
   });
 };
 
@@ -1626,7 +1625,7 @@ defineExpose({
           text-decoration: underline;
         }
       }
-      
+
       // 正在编辑的单元格样式
       .vxe-body--column.col--active,
       .vxe-cell--edit {
