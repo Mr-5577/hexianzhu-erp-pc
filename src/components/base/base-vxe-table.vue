@@ -967,7 +967,7 @@ const getEditRender = (col: VxeTableColumn): any => {
     case "select": {
       // elementplus-ui 组件
       return {
-        name: "VxeSelect",
+        name: "ElSelect",
         options: getOptions(col),
         props: {
           ...commonProps,
