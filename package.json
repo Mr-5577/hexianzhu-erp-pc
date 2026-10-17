@@ -14,6 +14,7 @@
     "format": "oxfmt src/"
   },
   "dependencies": {
+    "@vxe-ui/plugin-render-element": "^4.4.4",
     "axios": "^1.19.0",
     "dayjs": "^1.11.22",
     "element-plus": "^2.14.4",
@@ -21,8 +22,8 @@
     "pinia-plugin-persistedstate": "^4.7.1",
     "vue": "^3.5.40",
     "vue-router": "^4.6.3",
-    "vxe-pc-ui": "~4.16.27",
-    "vxe-table": "~4.20.12",
+    "vxe-pc-ui": "^4.20.10",
+    "vxe-table": "^4.22.3",
     "xe-utils": "^4.0.12"
   },
   "devDependencies": {

@@ -72,6 +72,10 @@
         :height="computedHeight"
         :max-height="maxHeight"
         :column-config="columnConfig"
+        :header-cell-config="headerCellConfig"
+        :cell-config="cellConfig"
+        :footer-cell-config="footerCellConfig"
+        :edit-rules="computedEditRules"
         :show-header-overflow="true"
         :show-overflow="true"
         @checkbox-change="handleCheckboxChange"
@@ -99,16 +103,6 @@
 
     <!-- ===== 分页组件 ===== -->
     <div class="pagination" v-if="pagination">
-      <!-- <vxe-pager
-        v-model:current-page="internalCurrentPage"
-        v-model:page-size="internalPageSize"
-        :page-sizes="pageSizes"
-        :layouts="paginationLayouts"
-        :total="total"
-        size="small"
-        background
-        @page-change="handlePageChange"
-      /> -->
       <el-pagination
         :current-page="currentPage"
         :page-size="pageSize"
@@ -165,6 +159,59 @@ export interface HeaderTipConfig {
 }
 
 /**
+ * vxe-table 校验规则
+ * @example
+ * // 必填
+ * { required: true, message: '请输入合同编号' }
+ * // 长度限制
+ * { min: 3, max: 20, message: '长度 3-20 个字符' }
+ * // 数值大小限制（type: 'number' 时 min/max 表示数值大小）
+ * { type: 'number', min: 0, max: 9999, message: '金额需在 0-9999 之间' }
+ * // 数组类型（多选 cascader 等）
+ * { type: 'array', message: '请至少选择一个' }
+ * // 正则
+ * { pattern: /^[A-Z]{2}-\d{4}$/, message: '格式如 HT-2024' }
+ * // 自定义校验
+ * {
+ *   validator: ({ cellValue, row }) => {
+ *     if (cellValue === row.other) return new Error('不能与 other 相同');
+ *   },
+ *   message: '校验失败',
+ * }
+ */
+export interface VxeValidatorRule {
+  /** 指定校验的字段名 */
+  field?: string;
+  /** 是否必填，true 时表头会自动显示红色星号  */
+  required?: boolean;
+  /** 最小长度 / 最小值 - `type` 为 `'number'` 时表示数值大小比较 */
+  min?: number;
+  /** 最大长度 / 最大值 - `type` 为 `'number'` 时表示数值大小比较 */
+  max?: number;
+  /**
+   * 数据校验的类型
+   * - `'number'`：数值类型，min/max 按数值大小比较
+   * - `'string'`：字符串类型（默认）
+   * - `'array'`：数组类型（多选场景必须指定，否则 required 对 [] 不生效）
+   * @default 'string'
+   */
+  type?: "number" | "string" | "array";
+  /** 正则校验 */
+  pattern?: RegExp | string;
+  /** 自定义校验方法 */
+  validator?: (params: {
+    cellValue: any;
+    rule: VxeValidatorRule;
+    rules: VxeValidatorRule[];
+    row: any;
+    rowIndex: number;
+    column: any;
+    columnIndex: number;
+  }) => Error | Promise<any> | void | null;
+  /** 校验提示内容 */
+  message?: string;
+}
+/**
  * 可编辑列配置接口
  *
  * 扩展了 vxe-table 的列配置，增加了编辑相关的配置项。
@@ -193,9 +240,10 @@ export interface VxeTableColumn {
     default?: string; // 默认内容插槽名
     header?: string; // 表头插槽名
     edit?: string; // 编辑状态插槽名
+    content?: string; // 展开行内容插槽名
   };
-  /** 列类型：checkbox（多选）| seq（序号）| radio（单选） */
-  type?: "checkbox" | "seq" | "radio";
+  /** 列类型：checkbox（多选）| seq（序号）| radio（单选）| expand（展开） */
+  type?: "checkbox" | "seq" | "radio" | "expand";
   /** 是否为树形节点列（显示展开箭头） */
   treeNode?: boolean;
 
@@ -225,16 +273,22 @@ export interface VxeTableColumn {
     | "select" // 下拉选择器
     | "number" // 数字输入框
     | "date" // 日期选择器
+    | "datetime" // 日期时间选择器
+    | "year" // 年份选择器
     | "month" // 月份选择器
-    | "switch" // 开关
-    | "textarea" // 文本域
     | "cascader"; // 级联选择器
-  /** 编辑校验规则 */
-  editRules?: Array<{
-    required?: boolean;
-    message?: string;
-    trigger?: string;
-  }>;
+  /**
+   * 编辑校验规则（列级）
+   * - 只写规则数组即可，不需要再包一层 `{ [field]: [...] }`
+   * - 组件内部会自动聚合到 vxe-grid 的 editRules 上
+   * - 支持多级表头（children 里的规则也会被收集）
+   * @example
+   * editRules: [
+   *   { required: true, message: '请输入合同编号' },
+   *   { min: 3, max: 20, message: '长度 3-20 个字符' },
+   * ]
+   */
+  editRules?: VxeValidatorRule[];
   /** 是否可编辑，默认为 true */
   editable?: boolean;
   /** 禁用状态，支持布尔值或函数 */
@@ -273,10 +327,18 @@ export interface VxeTableColumn {
   // ===== 级联选择相关 =====
   /** 级联选择器配置 */
   cascaderProps?: {
-    children?: string;
-    label?: string;
-    value?: string;
+    /** 选项文本字段名，默认 'label' */
+    labelField?: string;
+    /** 选项值字段名，默认 'value' */
+    valueField?: string;
+    /** 子节点字段名，默认 'children' */
+    childrenField?: string;
+    /** 是否多选，默认 false */
+    multiple?: boolean;
+    /** 是否只返回叶子节点值 */
     emitPath?: boolean;
+    /** 自定义过滤方法 */
+    filterMethod?: (params: { node: any; filterValue: string }) => boolean;
   };
 
   // ===== 子列（多级表头） =====
@@ -315,6 +377,31 @@ interface Props {
   columns: VxeTableColumn[];
   /** 行数据的唯一标识字段，用于选中、编辑等场景，默认 'id' */
   rowKey?: string;
+  /** 表头单元格配置 */
+  headerCellConfig?: {
+    height?: number;
+  };
+  /** 表格单元格配置 */
+  cellConfig?: {
+    height?: number;
+  };
+  /** 表尾单元格配置 */
+  footerCellConfig?: {
+    height?: number;
+  };
+  /**
+   * 全局校验规则（兜底）
+   * 适用于"所有表格都需要"的通用规则，避免在每个列的 editRules 里重复写。
+   * 列级 `editRules` 优先级更高，同名字段会被列级覆盖。
+   *
+   * key 为字段名，value 为该字段的规则数组。
+   * @example
+   * :edit-rules="{
+   *   remark: [{ max: 200, message: '备注不能超过 200 字' }],
+   *   amount: [{ type: 'number', min: 0, message: '金额不能为负数' }],
+   * }"
+   */
+  editRules?: Record<string, VxeValidatorRule[]>;
 
   // ===== 状态 =====
   /** 加载状态（显示加载动画） */
@@ -333,8 +420,6 @@ interface Props {
   total?: number;
   /** 每页条数选项列表 */
   pageSizes?: number[];
-  /** 分页布局，支持：PrevJump, PrevPage, Number, NextPage, NextJump, Sizes, Total */
-  paginationLayouts?: any[];
 
   // ===== 表格样式与行为 =====
   /** 表格高度，支持数字（px）或字符串 */
@@ -407,6 +492,10 @@ interface Props {
     column: any;
     columnIndex: number;
   }) => { rowspan: number; colspan: number } | void;
+
+  // ==== 展开行配置 =====
+  /** 展开行配置 */
+  expandConfig?: any;
 }
 
 /**
@@ -449,21 +538,22 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   modelValue: () => [],
   rowKey: "id",
+  headerCellConfig: () => ({
+    height: 30,
+  }),
+  cellConfig: () => ({
+    height: 30,
+  }),
+  footerCellConfig: () => ({
+    height: 30,
+  }),
+  editRules: () => ({}),
   loading: false,
   pagination: false,
   pageSize: 20,
   currentPage: 1,
   total: 0,
   pageSizes: () => [10, 20, 50, 100],
-  paginationLayouts: () => [
-    "PrevJump",
-    "PrevPage",
-    "Number",
-    "NextPage",
-    "NextJump",
-    "Sizes",
-    "Total",
-  ],
   showToolbar: false,
   height: undefined,
   maxHeight: undefined,
@@ -501,10 +591,6 @@ const emit = defineEmits<Emits>();
 const gridRef = ref<VxeGridInstance>();
 /** 表格容器引用（用于高度计算） */
 const tableWrapperRef = ref<HTMLElement>();
-/** 内部当前页码（用于分页） */
-const internalCurrentPage = ref(props.currentPage);
-/** 内部每页条数（用于分页） */
-const internalPageSize = ref(props.pageSize);
 /** 选中的行数据 */
 const selectedRows = ref<any[]>([]);
 
@@ -631,14 +717,44 @@ const columnConfig = computed(() => ({
 }));
 
 /**
+ * 聚合校验规则：全局 editRules + 列级 editRules
+ *
+ * - 列级优先级更高，会覆盖同名字段的全局规则
+ * - 支持多级表头（递归 children）
+ * - computed 缓存：props.editRules / props.columns 引用不变时不重算
+ */
+const computedEditRules: any = computed<Record<string, VxeValidatorRule[]>>(
+  () => {
+    // 先铺一层全局兜底规则（浅拷贝，避免污染 props）
+    const merged: Record<string, VxeValidatorRule[]> = { ...props.editRules };
+
+    // 递归遍历列配置，把列级 editRules 挂到对应字段上
+    const walk = (cols: VxeTableColumn[]) => {
+      for (const c of cols) {
+        // 只处理"有字段名 + 有规则 + 规则为非空数组"的列
+        if (c.field && Array.isArray(c.editRules) && c.editRules.length > 0) {
+          merged[c.field] = c.editRules; // 列级覆盖全局
+        }
+        // 多级表头继续往下走
+        if (c.children?.length) walk(c.children);
+      }
+    };
+    walk(props.columns);
+
+    return merged;
+  },
+);
+/**
  * 编辑配置
  *
  * 当 readonly 为 true 时，禁用所有编辑功能
  * trigger: 编辑触发方式：manual（手动触发方式，只能用于 mode=row）,click（点击触发编辑）,dblclick（双击触发编辑）
  * enabled: 是否启用编辑功能
+ * showIcon: 是否显示列头编辑图标
  * mode: 编辑模式：cell（单元格编辑模式）,row（行编辑模式）
  * showStatus: 显示编辑状态，只对 keepSource 开启有效
  * autoClear: 是否自动清除编辑状态
+ * showAsterisk: 是否显示必填字段的红色星号
  */
 const editConfig: any = computed(() => {
   if (props.readonly) {
@@ -646,11 +762,13 @@ const editConfig: any = computed(() => {
   }
   return {
     trigger: props.editTrigger,
-    enabled: true,
-    mode: props.editMode,
-    showStatus: true,
-    autoClear: true,
-    // 👇 动态校验：由列配置的 disabled 决定
+    enabled: true, // 是否启用编辑功能
+    showIcon: true, // 是否显示列头编辑图标
+    mode: props.editMode, // editConfig.mode: 编辑模式：cell（单元格编辑模式）,row（行编辑模式）
+    showStatus: false, // 显示编辑状态，showStatus开启后, keepSource 开启才有效
+    autoClear: true, // 是否自动清除编辑状态
+    showAsterisk: true, // 是否显示必填字段的红色星号
+    // 👇 动态校验是否可编辑：由列配置的 disabled 决定
     beforeEditMethod: ({ row, column }: any) => {
       // 1. 找到该列在原始 columns 里的配置（支持多级表头递归）
       const col = findColumnByField(props.columns, column.field);
@@ -728,7 +846,7 @@ const gridOptions = computed<VxeGridProps>(() => ({
   stripe: props.stripe,
   showOverflow: true,
   showHeaderOverflow: true,
-  keepSource: true,
+  keepSource: false,
   // 合计行配置
   showFooter: props.showFooter,
   footerData:
@@ -743,6 +861,8 @@ const gridOptions = computed<VxeGridProps>(() => ({
   footerRowConfig: props.footerRowConfig,
   // 👇 把合并方法传给 vxe-grid
   spanMethod: props.spanMethod as any,
+  // 展开行配置
+  expandConfig: props.expandConfig,
 }));
 
 // ============================================================================
@@ -845,6 +965,7 @@ const getEditRender = (col: VxeTableColumn): any => {
 
   switch (col.editType) {
     case "select": {
+      // elementplus-ui 组件
       return {
         name: "VxeSelect",
         options: getOptions(col),
@@ -856,7 +977,6 @@ const getEditRender = (col: VxeTableColumn): any => {
         },
       };
     }
-
     case "number": {
       // 使用专门的数字输入组件，而非 VxeInput type="number"
       return {
@@ -875,19 +995,41 @@ const getEditRender = (col: VxeTableColumn): any => {
         },
       };
     }
-
     case "date": {
+      // elementplus-ui 组件
+      return {
+        name: "ElDatePicker",
+        props: {
+          ...commonProps,
+          type: "date",
+          format: "YYYY-MM-DD",
+          valueFormat: "YYYY-MM-DD",
+        },
+      };
+    }
+    case "datetime": {
+      // elementplus-ui 组件
+      return {
+        name: "ElDatePicker",
+        props: {
+          ...commonProps,
+          type: "datetime",
+          format: "YYYY-MM-DD HH:mm:ss",
+          valueFormat: "YYYY-MM-DD HH:mm:ss",
+        },
+      };
+    }
+    case "year": {
       return {
         name: "VxeDatePicker",
         props: {
           ...commonProps,
-          type: "date",
-          format: "yyyy-MM-dd",
-          valueFormat: "yyyy-MM-dd",
+          type: "year",
+          format: "yyyy",
+          valueFormat: "yyyy",
         },
       };
     }
-
     case "month": {
       return {
         name: "VxeDatePicker",
@@ -899,43 +1041,38 @@ const getEditRender = (col: VxeTableColumn): any => {
         },
       };
     }
-
-    case "switch": {
-      return {
-        name: "VxeSwitch",
-        props: commonProps,
-      };
-    }
-
-    case "textarea": {
-      return {
-        name: "VxeTextarea",
-        props: {
-          ...commonProps,
-          rows: 2,
-        },
-      };
-    }
-
+    // elementplus-ui 组件
     case "cascader": {
+      const rawOptions = Array.isArray(col.options) ? col.options : [];
+      const labelField = col.cascaderProps?.labelField || "label";
+      const valueField = col.cascaderProps?.valueField || "value";
+      const childrenField = col.cascaderProps?.childrenField || "children";
       return {
-        name: "VxeCascader",
-        options: getOptions(col),
+        name: "ElCascader",
         props: {
           ...commonProps,
-          children: col.cascaderProps?.children || "children",
-          label: col.cascaderProps?.label || "label",
-          value: col.cascaderProps?.value || "value",
-          emitPath:
-            col.cascaderProps?.emitPath !== undefined
-              ? col.cascaderProps.emitPath
-              : false,
-          filterable: true,
+          options: rawOptions,
           clearable: true,
+          filterable: true,
+          showAllLevels: false, // 是否显示完整路径
+          collapseTags: true, // 多选时是否折叠tag
+          props: {
+            value: valueField,
+            label: labelField,
+            children: childrenField,
+            multiple: col.cascaderProps?.multiple ?? false, // 是否多选
+            checkStrictly: false, // 父子不互相关联
+            emitPath: (col.cascaderProps as any)?.emitPath ?? false, // 不返回整个路径，只返回叶子节点值
+          },
+        },
+        events: {
+          change: (params: any) => {
+            const { $table } = params;
+            $table?.updateStatus?.(params);
+          },
         },
       };
     }
-
     case "input":
     default: {
       return {
@@ -943,6 +1080,7 @@ const getEditRender = (col: VxeTableColumn): any => {
         props: {
           ...commonProps,
           type: "text",
+          clearable: true,
         },
       };
     }
@@ -969,6 +1107,56 @@ const getOptions = (col: VxeTableColumn): any[] => {
   return [];
 };
 
+// ============================================================================
+// 级联选项 value → label 缓存（预构建 Map，O(1) 查找）
+// 用 WeakMap 以 options 数组为 key 缓存，只要引用不变就一直复用
+// ============================================================================
+const cascaderLabelMapCache = new WeakMap<object, Map<any, string>>();
+// 递归构建 Map
+const buildCascaderLabelMap = (
+  options: any[],
+  valueField: string,
+  labelField: string,
+  childrenField: string,
+  map = new Map<any, string>(),
+): Map<any, string> => {
+  for (const opt of options) {
+    // 同一 value 只存一次（后面的不覆盖前面的，保持首次出现）
+    if (!map.has(opt[valueField])) {
+      map.set(opt[valueField], opt[labelField]);
+    }
+    const children = opt[childrenField];
+    if (Array.isArray(children) && children.length) {
+      buildCascaderLabelMap(
+        children,
+        valueField,
+        labelField,
+        childrenField,
+        map,
+      );
+    }
+  }
+  return map;
+};
+// 获取 Map
+const getCascaderLabelMap = (
+  options: any[],
+  valueField: string,
+  labelField: string,
+  childrenField: string,
+): Map<any, string> => {
+  const cached = cascaderLabelMapCache.get(options);
+  if (cached) return cached;
+  const map = buildCascaderLabelMap(
+    options,
+    valueField,
+    labelField,
+    childrenField,
+  );
+  cascaderLabelMapCache.set(options, map);
+  return map;
+};
+
 /**
  * 转换列配置为 vxe-table 格式
  *
@@ -980,6 +1168,16 @@ const getOptions = (col: VxeTableColumn): any[] => {
  */
 const convertColumn = (col: VxeTableColumn): any => {
   // ===== 特殊列类型 =====
+  //   展开列
+  if (col.type === "expand") {
+    return {
+      type: "expand",
+      width: col.width || 34,
+      align: col.align || "center",
+      fixed: col.fixed,
+      slots: col.slots || { content: "expandContent" },
+    };
+  }
   // 复选框列
   if (col.type === "checkbox") {
     return {
@@ -1043,9 +1241,6 @@ const convertColumn = (col: VxeTableColumn): any => {
   // 只有 editable !== false 且未禁用时才启用编辑
   if (col.editable !== false && !props.readonly) {
     baseCol.editRender = getEditRender(col);
-    if (col.editRules && col.editRules.length > 0) {
-      baseCol.editRules = col.editRules;
-    }
   }
 
   // ===== 数据字典映射 =====
@@ -1067,6 +1262,57 @@ const convertColumn = (col: VxeTableColumn): any => {
         value: d[valueField],
       }));
     }
+  }
+
+  //  ===== 👇 新增：cascader 值 → label 自动映射（预构建 Map）=====
+  if (
+    col.editType === "cascader" &&
+    Array.isArray(col.options) && // 只处理静态数组，函数式 options 无法缓存
+    !col.formatter // 用户自定义 formatter 优先，不覆盖
+  ) {
+    const valueField = col.cascaderProps?.valueField || "value";
+    const labelField = col.cascaderProps?.labelField || "label";
+    const childrenField = col.cascaderProps?.childrenField || "children";
+    // 👇 默认 false（单值），只有显式传 true 才走数组分支
+    const emitPath = (col.cascaderProps as any)?.emitPath === true;
+    const isMultiple = col.cascaderProps?.multiple === true; // 多选时，值是数组，需要特殊处理
+
+    const options = col.options as any[];
+
+    baseCol.formatter = (params: any) => {
+      const raw = params.cellValue;
+      // 惰性获取 Map：第一次渲染时构建，之后全部命中缓存
+      const labelMap = getCascaderLabelMap(
+        options,
+        valueField,
+        labelField,
+        childrenField,
+      );
+      // 多选：值是数组，逐个映射后拼接
+      if (isMultiple) {
+        if (!Array.isArray(raw) || raw.length === 0) return "";
+        if (emitPath) {
+          // raw 是二维数组，每条路径取最后一级
+          return raw
+            .map((path) => {
+              if (!Array.isArray(path) || path.length === 0) return "";
+              return labelMap.get(path[path.length - 1]) ?? "";
+            })
+            .filter(Boolean)
+            .join("、");
+        }
+        // 一维数组：直接映射
+        return raw.map((v: any) => labelMap.get(v) ?? v).join("、");
+      }
+      if (emitPath) {
+        // 值是路径数组，只显示最后一级
+        if (!Array.isArray(raw) || raw.length === 0) return "";
+        return labelMap.get(raw[raw.length - 1]) ?? "";
+      }
+      // 值是单值
+      if (raw === null || raw === undefined || raw === "") return "";
+      return labelMap.get(raw) ?? "";
+    };
   }
 
   // ===== 自定义格式化 =====
@@ -1190,30 +1436,34 @@ const defaultFooterMethod = ({ data }: { data: any[] }) => {
 // 事件处理
 // ============================================================================
 
+// 编辑快照直接挂在行对象上（Symbol 不可枚举，不影响 JSON/遍历）
+const EDIT_SNAPSHOT_KEY = Symbol("__edit_snapshot__");
 /**
- * 编辑前的值快照
- * key = `${rowKey}_${field}`  value = 编辑前的值（对象类型会深拷贝）
+ * 空值归一化：null / undefined → ''，避免同一"空"值因类型不同被判为变更
  */
-const editSnapshot = new Map<string, any>();
+const normalizeEmpty = (v: any) => (v === null || v === undefined ? "" : v);
 
 /**
  * 单元格进入编辑状态：记录旧值
  */
 const handleEditActived = ({ row, column }: any) => {
   if (!column?.field) return;
-  const key = `${row[props.rowKey]}_${column.field}`;
   const value = row[column.field];
-  // 对象/数组要深拷贝，否则 vxe 直接改 row 会污染快照
-  editSnapshot.set(
-    key,
+
+  // 惰性创建快照对象（一行只创建一次）
+  if (!(row as any)[EDIT_SNAPSHOT_KEY]) {
+    // 用 Object.create(null) 避免原型链污染（防止字段名叫 constructor 等）
+    (row as any)[EDIT_SNAPSHOT_KEY] = Object.create(null);
+  }
+
+  (row as any)[EDIT_SNAPSHOT_KEY][column.field] =
     value !== null && typeof value === "object"
       ? JSON.parse(JSON.stringify(value))
-      : value,
-  );
+      : value;
 };
 
 /**
- * 编辑关闭事件处理
+ * 编辑关闭事件处理，取出该字段旧值，清掉该字段的快照
  *
  * 当用户完成单元格编辑并确认（如点击其他地方或按 Enter）时触发。
  * 这是数据同步的关键：将内部数据的变化同步到外部。
@@ -1225,18 +1475,27 @@ const handleEditClosed = (params: any) => {
   if (!column?.field) return;
 
   const field = column.field;
-  const key = `${row[props.rowKey]}_${field}`;
-  const oldValue = editSnapshot.get(key);
-  // 清理快照，避免内存泄漏
-  editSnapshot.delete(key);
+  const snapshot = (row as any)[EDIT_SNAPSHOT_KEY];
+  const oldValue = snapshot ? snapshot[field] : undefined;
+
+  // 清掉当前字段的快照；没有待处理字段时整块释放
+  if (snapshot) {
+    delete snapshot[field];
+    if (Object.keys(snapshot).length === 0) {
+      delete (row as any)[EDIT_SNAPSHOT_KEY];
+    }
+  }
 
   const newValue = row[field];
-
+  // 如果新旧值相等，则不触发更新（避免不必要的更新）
+  // 注意：这里需要深度比较（对象类型需要）
   // 深度比较（对象类型需要）
   const isEqual =
-    newValue === oldValue ||
+    normalizeEmpty(newValue) === normalizeEmpty(oldValue) ||
     (newValue !== null &&
+      oldValue !== null &&
       typeof newValue === "object" &&
+      typeof oldValue === "object" &&
       JSON.stringify(newValue) === JSON.stringify(oldValue));
 
   // 当值发生变化时才触发更新
@@ -1245,12 +1504,7 @@ const handleEditClosed = (params: any) => {
     emit("update:modelValue", internalData.value);
 
     // data-change 事件
-    emit("data-change", {
-      row,
-      field,
-      newValue,
-      oldValue,
-    });
+    emit("data-change", { row, field, newValue, oldValue });
 
     // 合计行刷新
     if (props.showFooter) {
@@ -1286,24 +1540,38 @@ const handleRadioChange = (_params: any) => {
   emit("selection-change", selectedRows.value);
 };
 
+// 以 columns 数组引用为 key，缓存「字段名 → 列配置」的索引
+const fieldIndexCache = new WeakMap<
+  VxeTableColumn[],
+  Map<string, VxeTableColumn>
+>();
 /**
- * 递归查找列配置（支持多级表头）
+ * 获取所有叶子节点列
+ * （支持多级表头）
  */
+const getFieldIndex = (
+  columns: VxeTableColumn[],
+): Map<string, VxeTableColumn> => {
+  const cached = fieldIndexCache.get(columns);
+  if (cached) return cached;
+  const map = new Map<string, VxeTableColumn>();
+  const walk = (cols: VxeTableColumn[]) => {
+    for (const c of cols) {
+      if (c.field) map.set(c.field, c);
+      if (c.children?.length) walk(c.children);
+    }
+  };
+  walk(columns);
+  fieldIndexCache.set(columns, map);
+  return map;
+};
 const findColumnByField = (
   columns: VxeTableColumn[],
   field: string,
 ): VxeTableColumn | undefined => {
-  for (const col of columns) {
-    if (col.field === field) {
-      return col;
-    }
-    if (col.children) {
-      const found = findColumnByField(col.children, field);
-      if (found) return found;
-    }
-  }
-  return undefined;
+  return getFieldIndex(columns).get(field);
 };
+
 /**
  * 单元格点击事件
  */
@@ -1340,23 +1608,6 @@ const handlePageSizeChange = (val: number): void => {
 const handleCurrentChange = (val: number): void => {
   emit("update:currentPage", val);
   emit("pagination-change", { pageSize: props.pageSize, currentPage: val });
-};
-
-/**
- * vxe-pager分页变化事件
- */
-const handlePageChange = (params: {
-  currentPage: number;
-  pageSize: number;
-}) => {
-  internalCurrentPage.value = params.currentPage;
-  internalPageSize.value = params.pageSize;
-  emit("update:currentPage", params.currentPage);
-  emit("update:pageSize", params.pageSize);
-  emit("pagination-change", {
-    currentPage: params.currentPage,
-    pageSize: params.pageSize,
-  });
 };
 
 /**
@@ -1412,7 +1663,13 @@ onMounted(() => {
 defineExpose({
   /** 获取当前编辑后的数据 */
   getData: () => internalData.value,
-  /** 获取原始数据（未编辑的版本，由 vxe keepSource 维护） */
+  /**
+   * 获取原始数据（编辑前）
+   *
+   * ⚠️ 依赖 vxe-grid 的 keepSource: true。
+   *    本项目 keepSource 已关闭，因此返回值与 getData() 相同，
+   *    如需真正的"编辑前数据"，请开启 keepSource 或自行备份。
+   */
   getOriginalData: () => {
     return gridRef.value?.getTableData?.()?.fullData ?? internalData.value;
   },
@@ -1496,6 +1753,11 @@ defineExpose({
   },
   /** 取消编辑 */
   cancelEdit: () => gridRef.value?.clearEdit(),
+  /** 设置所有行的展开状态 */
+  setAllRowExpand: (expand: boolean) => gridRef.value?.setAllRowExpand(expand),
+  /** 设置指定行的展开状态 */
+  setRowExpand: (row: any, expand: boolean) =>
+    gridRef.value?.setRowExpand(row, expand),
 });
 </script>
 
@@ -1563,6 +1825,7 @@ defineExpose({
             color: #515a6e;
             font-weight: 600;
             font-size: 14px;
+            padding: 0 8px;
           }
 
           // 表头提示图标样式
@@ -1587,35 +1850,6 @@ defineExpose({
           }
         }
       }
-
-      .vxe-table--body-wrapper {
-        .vxe-body--row {
-          height: 30px !important;
-          &.row--current {
-            background-color: #e0ecfc !important;
-          }
-
-          &:hover {
-            .vxe-body--row {
-              background-color: #f0f5ff !important;
-            }
-          }
-          // 单元格样式
-          .vxe-body--column {
-            height: 30px !important;
-            font-size: 14px;
-            color: #4c4d4e;
-          }
-        }
-        .vxe-body--column {
-          height: 30px !important;
-          .vxe-cell {
-            height: 100% !important;
-            min-height: 30px !important;
-            max-height: 30px !important;
-          }
-        }
-      }
       // 可点击单元格样式
       .clickable-cell {
         cursor: pointer;
@@ -1625,37 +1859,18 @@ defineExpose({
           text-decoration: underline;
         }
       }
-
-      // 正在编辑的单元格样式
-      .vxe-body--column.col--active,
-      .vxe-cell--edit {
-        .vxe-input .vxe-input--inner {
-          border-radius: 0;
-          border-color: #409eff;
-          height: 30px;
-          padding: 0 8px;
-          font-size: 13px;
-        }
-
-        .vxe-select .vxe-input--inner,
-        .vxe-date-picker .vxe-input--inner,
-        .vxe-cascader .vxe-input--inner {
-          border-radius: 0;
-          border-color: #409eff;
-          height: 30px;
-          padding: 0 8px;
-          font-size: 13px;
-        }
-
-        .vxe-textarea .vxe-textarea--inner {
-          border-radius: 0;
-          border-color: #409eff;
-          font-size: 13px;
-          padding: 4px 8px;
-        }
-
-        .vxe-switch {
-          vertical-align: middle;
+      // 调整body单元格样式
+      .vxe-table--body {
+        tr td {
+          .vxe-cell {
+            padding: 0 8px !important; // 去掉单元格默认的内边距
+            .vxe-cell--wrapper {
+              .el-input,
+              .el-select .el-select__wrapper {
+                height: 28px; // 设置可编辑表单的高度
+              }
+            }
+          }
         }
       }
     }
@@ -1665,41 +1880,19 @@ defineExpose({
 // 合计行统一样式（覆盖 vxe-table 默认）
 .table-wrapper {
   :deep(.vxe-table--footer-wrapper) {
-    .vxe-table--footer-inner-wrapper {
-      height: 30px !important;
-    }
     .vxe-footer--row {
-      height: 30px !important;
       background: #f5f7fa !important;
       .vxe-footer--column {
         .vxe-cell {
-          min-height: 30px !important;
-          height: 30px !important;
-          line-height: 30px !important;
-          font-weight: 600;
-          color: #1a3c5e;
+          padding: 0 8px !important;
+          font-weight: 500;
+          // color: #303841;
         }
       }
     }
   }
 }
-// vxe-pager 分页样式
-// .pagination {
-//   display: flex;
-//   justify-content: flex-end;
-//   margin-top: 10px;
-//   flex-shrink: 0;
 
-//   :deep(.vxe-pager) {
-//     .vxe-pager--btn {
-//       border-radius: 4px;
-//       &.is-active {
-//         background: linear-gradient(135deg, #05456e 0%, #4096cc 100%);
-//         color: #fff;
-//       }
-//     }
-//   }
-// }
 // ==================== element-plus分页样式 ====================
 .pagination {
   display: flex;
