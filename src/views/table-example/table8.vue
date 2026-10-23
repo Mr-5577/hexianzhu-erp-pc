@@ -5,11 +5,12 @@
     <p style="color: #909399; font-size: 13px">
       合同编号、合同名称、项目分类（单选）、项目分类（多选）可编辑；供应商、金额、状态只读
     </p>
-
+    <el-button @click="validEvent">校验</el-button>
     <base-vxe-table
       v-model="tableData"
       :columns="columns"
       row-key="id"
+      ref="tableRef"
       :border="true"
       :stripe="true"
       :show-toolbar="true"
@@ -37,6 +38,7 @@ import { ElMessage } from "element-plus";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
 
+const tableRef = ref();
 // ============================================================
 // 项目分类选项（树形），单选列 + 多选列共用同一份数据源
 // ============================================================
@@ -207,6 +209,14 @@ const handleDataChange = (params: any) => {
         : params.newValue
     }`,
   );
+};
+const validEvent = async () => {
+  const $tableRef = tableRef.value;
+  if ($tableRef) {
+    const errMap = await $tableRef.validate();
+    // const errMap = await $tableRef.validateEvent()
+    console.log(errMap);
+  }
 };
 </script>
 

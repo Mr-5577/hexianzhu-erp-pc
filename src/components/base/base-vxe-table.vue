@@ -1217,7 +1217,7 @@ const convertColumn = (col: VxeTableColumn): any => {
     sortable: col.sortable || false,
     fixed: col.fixed,
     showOverflow: col.showOverflow !== false,
-    slots: col.slots || {},
+    slots: { ...(col.slots || {}) },
     resizable: true,
     treeNode: col.treeNode || false,
   };
@@ -1371,9 +1371,11 @@ const getAllLeafColumns = (cols: VxeTableColumn[]): VxeTableColumn[] => {
 const defaultFooterMethod = ({ data }: { data: any[] }) => {
   const leafColumns = getAllLeafColumns(props.columns);
 
-  // 找到第一个可作为合计标签的列（排除 checkbox/seq/radio）
+  // 找到第一个可作为合计标签的列（排除 checkbox/seq/radio/expand）
   const labelColumnIndex = leafColumns.findIndex(
-    (col) => col.type && ["checkbox", "seq", "radio"].includes(col.type || ""),
+    (col) =>
+      col.type &&
+      ["checkbox", "seq", "radio", "expand"].includes(col.type || ""),
   );
 
   // 按列顺序生成合计值
@@ -1626,6 +1628,50 @@ const clearSelection = () => {
   selectedRows.value = [];
 };
 
+/**
+ * 校验表格（全量校验）
+ * @param full true = 校验全部行；false = 只校验有修改的行（需 keepSource: true）
+ * @returns errMap：校验失败返回错误映射；通过返回 null/undefined
+ */
+const validateTable = async (full = true) => {
+  const grid = gridRef.value;
+  if (!grid) return null;
+  // 关键：先退出当前正在编辑的单元格，把最新值落到数据上
+  await (grid as any).clearEdit?.();
+  return await grid.validate(full);
+};
+
+/**
+ * 校验并弹消息（对齐官方示例的行为）
+ * @returns { valid: boolean; errMap: any }
+ */
+const validateWithMessage = async (options?: {
+  successMsg?: string;
+  errorMsg?: string;
+  /** 校验失败后是否定位到第一个错误行 */
+  focusFirstError?: boolean;
+}) => {
+  const errMap = await validateTable(true);
+
+  if (errMap) {
+    ElMessage.error(options?.errorMsg ?? "校验不通过，请检查标红单元格");
+
+    // 可选：自动定位到第一个错误行
+    // if (options?.focusFirstError) {
+    //   const firstKey = Object.keys(errMap)[0];
+    //   const errRow: any = errMap[firstKey];
+    //   if (errRow?.row) {
+    //     (gridRef.value as any)?.scrollToRow?.(errRow.row);
+    //     gridRef.value?.setActiveRow?.(errRow.row);
+    //   }
+    // }
+    return { valid: false, errMap };
+  }
+
+  ElMessage.success(options?.successMsg ?? "校验成功");
+  return { valid: true, errMap: null };
+};
+
 // watch 内部数据变化时刷新合计（数据编辑后自动更新）
 watch(
   () => internalData.value,
@@ -1758,6 +1804,10 @@ defineExpose({
   /** 设置指定行的展开状态 */
   setRowExpand: (row: any, expand: boolean) =>
     gridRef.value?.setRowExpand(row, expand),
+  /** 只校验，返回 errMap */
+  validate: validateTable,
+  /** 校验 + 消息提示 + 返回是否通过 */
+  validateEvent: validateWithMessage,
 });
 </script>
 
