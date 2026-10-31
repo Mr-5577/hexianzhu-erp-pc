@@ -45,10 +45,7 @@ export default defineConfig(({ mode }) => {
       hmr: true,
       proxy: {
         "/api": {
-          // target: env.VITE_API_BASE_URL_ACTUAL, // 开发环境
-          // target: "http://sys.hexianzhu.com", // 正式环境
-          target: "http://10.215.215.6:8090", // 测试环境
-          // target: "http://192.168.20.200:8091",  // 本地环境
+          target: env.VITE_API_BASE_URL_ACTUAL, // 从当前环境变量读取，避免写死
           changeOrigin: true, // 允许跨域
           ws: true,
           rewrite: (path) => path, // 保持路径不变
@@ -59,13 +56,36 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: `dist-${mode}`,
       sourcemap: isDev || isTest,
-      minify: isProd ? "esbuild" : false,
+      // Vite 8（Rolldown 内核）默认使用 oxc 压缩器，无需再指定 esbuild
+      minify: isProd,
       ...(isProd && {
         rollupOptions: {
           output: {
             entryFileNames: `assets/[name].${timestamp}.[hash:8].js`,
             chunkFileNames: `assets/[name].${timestamp}.[hash:8].js`,
             assetFileNames: `assets/[name].${timestamp}.[hash:8].[ext]`,
+            // 大型依赖单独分包，提升缓存命中率与首屏加载速度
+            // 注意：Vite 8（Rolldown）只支持函数形式的 manualChunks
+            manualChunks(id: string) {
+              if (!id.includes("node_modules")) return;
+              if (id.includes("element-plus") || id.includes("@element-plus"))
+                return "element";
+              if (
+                id.includes("vxe-pc-ui") ||
+                id.includes("vxe-table") ||
+                id.includes("@vxe-ui") ||
+                id.includes("xe-utils")
+              )
+                return "vxe";
+              if (
+                id.includes("/vue/") ||
+                id.includes("vue-router") ||
+                id.includes("pinia") ||
+                id.includes("@vue")
+              )
+                return "vue";
+              return "vendor";
+            },
           },
         },
       }),

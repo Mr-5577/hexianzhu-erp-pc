@@ -1,5 +1,5 @@
 {
-  "name": "cost-system",
+  "name": "hxaz-admin-template",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,13 +11,26 @@
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
-    "format": "oxfmt src/"
+    "format": "oxfmt src/",
+    "lint": "eslint . --fix",
+    "lint:check": "eslint .",
+    "postinstall": "simple-git-hooks"
+  },
+  "lint-staged": {
+    "*.{ts,vue}": [
+      "eslint --fix"
+    ]
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
   },
   "dependencies": {
+    "@vueuse/core": "^15.0.0",
     "@vxe-ui/plugin-render-element": "^4.4.4",
     "axios": "^1.19.0",
     "dayjs": "^1.11.22",
     "element-plus": "^2.14.4",
+    "nprogress": "^0.2.0",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "vue": "^3.5.40",
@@ -29,11 +42,18 @@
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
     "@types/node": "^24.13.3",
+    "@types/nprogress": "^0.2.3",
     "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/eslint-config-typescript": "^14.9.0",
     "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.14.0",
+    "eslint-plugin-vue": "^10.12.0",
+    "jiti": "^2.7.0",
+    "lint-staged": "^17.6.0",
     "npm-run-all2": "^9.0.2",
     "oxfmt": "^0.59.0",
     "sass-embedded": "^1.102.0",
+    "simple-git-hooks": "^2.14.0",
     "typescript": "~6.0.0",
     "unplugin-auto-import": "^21.1.0",
     "unplugin-vue-components": "^32.1.0",
