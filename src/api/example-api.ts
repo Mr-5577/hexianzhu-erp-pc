@@ -1,5 +1,5 @@
 import request from "@/axios/request";
-import type { PageParams, PageResponse } from "@/axios/request-types";
+import type { PageResponse } from "@/axios/request-types";
 
 // ============================================================
 // GET - 查询数据

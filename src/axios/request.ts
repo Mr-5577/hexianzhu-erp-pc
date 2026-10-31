@@ -6,6 +6,8 @@ import axios, {
 } from "axios";
 import { ElMessage, ElLoading } from "element-plus";
 import type { RequestOptions } from "./request-types";
+import { TOKEN_KEY } from "@/constants";
+import router from "@/router";
 
 // 默认配置
 const DEFAULT_OPTIONS: RequestOptions = {
@@ -35,8 +37,8 @@ class Request {
     // 请求拦截器
     this.instance.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        // 添加 Token
-        const token = localStorage.getItem("token");
+        // 添加 Token（key 与 user store 保持一致，统一走 constants）
+        const token = localStorage.getItem(TOKEN_KEY);
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -83,8 +85,12 @@ class Request {
           } else if (data.code === 401) {
             // Token 过期或未登录
             ElMessage.error("登录已过期，请重新登录");
-            // 跳转到登录页
-            window.location.href = "/login";
+            localStorage.removeItem(TOKEN_KEY);
+            // 使用 router 跳转，保留当前地址便于登录后回跳
+            router.push({
+              path: "/login",
+              query: { redirect: router.currentRoute.value.fullPath },
+            });
             return Promise.reject(data);
           } else {
             // 业务错误
@@ -132,6 +138,15 @@ class Request {
           errorMessages[status] ||
           options?.errorMessage ||
           "请求失败";
+
+        // HTTP 层 401：清理 token 并跳转登录页
+        if (status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+          router.push({
+            path: "/login",
+            query: { redirect: router.currentRoute.value.fullPath },
+          });
+        }
 
         if (!options?.silent) {
           ElMessage.error(message);
