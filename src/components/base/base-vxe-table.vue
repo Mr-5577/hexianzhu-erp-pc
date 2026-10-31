@@ -13,6 +13,7 @@
  *   ✅ 可配置的工具栏
  *   ✅ 表头提示（在表头文字后显示自定义图标，鼠标悬停显示提示内容）
  *   ✅ 合计行（支持 sum / avg / count / custom，通过 showSummary 或 summary 配置）
+ *   ✅ 高度模式：height 固定高度 / 不传 height 只传 minHeight + maxHeight 时随数据量自适应
  *
  * 使用示例：
  *   <base-vxe-table
@@ -27,7 +28,10 @@
  -->
 
 <template>
-  <div class="base-vxe-table-wrapper">
+  <div
+    class="base-vxe-table-wrapper"
+    :class="{ 'is-auto-height': isAutoHeight }"
+  >
     <!-- ===== 操作栏（插槽） ===== -->
     <div class="action-bar" v-if="$slots.actionBar">
       <slot name="actionBar" />
@@ -57,7 +61,7 @@
     </div>
 
     <!-- ===== vxe-grid 表格 ===== -->
-    <div class="table-wrapper" ref="tableWrapperRef">
+    <div class="table-wrapper">
       <vxe-grid
         ref="gridRef"
         v-bind="gridOptions"
@@ -70,6 +74,7 @@
         :tooltip-config="tooltipConfig"
         :scroll-y="scrollYConfig"
         :height="computedHeight"
+        :min-height="minHeight"
         :max-height="maxHeight"
         :column-config="columnConfig"
         :header-cell-config="headerCellConfig"
@@ -424,7 +429,15 @@ interface Props {
   // ===== 表格样式与行为 =====
   /** 表格高度，支持数字（px）或字符串 */
   height?: string | number;
-  /** 表格最大高度 */
+  /**
+   * 表格最小高度（需配合 maxHeight 使用）：
+   * 不传 height 时表格随数据量自适应，最小不会低于该值
+   */
+  minHeight?: string | number;
+  /**
+   * 表格最大高度：
+   * 不传 height 时表格随数据量自适应，最大不会超过该值，超出后出现滚动条
+   */
   maxHeight?: string | number;
   /** 是否显示边框 */
   border?: boolean;
@@ -555,8 +568,9 @@ const props = withDefaults(defineProps<Props>(), {
   total: 0,
   pageSizes: () => [10, 20, 50, 100],
   showToolbar: false,
-  height: undefined,
-  maxHeight: undefined,
+    height: undefined,
+    minHeight: undefined,
+    maxHeight: undefined,
   /**
    * 树形数据配置：
    * {
@@ -589,8 +603,6 @@ const emit = defineEmits<Emits>();
 
 /** vxe-grid 实例引用 */
 const gridRef = ref<VxeGridInstance>();
-/** 表格容器引用（用于高度计算） */
-const tableWrapperRef = ref<HTMLElement>();
 /** 选中的行数据 */
 const selectedRows = ref<any[]>([]);
 
@@ -827,12 +839,26 @@ const scrollYConfig = computed(() => {
 });
 
 /**
+ * 是否为自适应高度模式：
+ * 未显式传入 height、但传了 minHeight / maxHeight 时，
+ * 表格高度随数据量变化，封顶 maxHeight、保底 minHeight
+ */
+const isAutoHeight = computed(() => {
+  return !props.height && !!(props.maxHeight || props.minHeight);
+});
+
+/**
  * 表格高度
- * 优先使用外部传入的 height，否则使用 auto
+ * - 显式传入 height：固定高度（优先）
+ * - 只传 minHeight / maxHeight：返回 undefined（不传 height），
+ *   由 vxe-table 按内容自适应高度，封顶 maxHeight、保底 minHeight。
+ *   注意：vxe-table 的 height="auto" 是"跟随父容器高度"，
+ *   不能用于此场景，否则表格会被压成父容器高度
+ * - 都不传：100%，撑满父容器
  */
 const computedHeight = computed(() => {
   if (props.height) return props.height;
-  // return undefined;
+  if (isAutoHeight.value) return undefined;
   return "100%";
 });
 
@@ -1473,7 +1499,7 @@ const handleEditActived = ({ row, column }: any) => {
  * @param params 事件参数，包含行、列等
  */
 const handleEditClosed = (params: any) => {
-  const { row, rowIndex, column, columnIndex, $event } = params; // 获取单元格的值
+  const { row, column } = params; // 获取单元格的值
   if (!column?.field) return;
 
   const field = column.field;
@@ -1518,7 +1544,7 @@ const handleEditClosed = (params: any) => {
 /**
  * 复选框选择变化
  */
-const handleCheckboxChange = (params: any) => {
+const handleCheckboxChange = () => {
   const selection = gridRef.value?.getCheckboxRecords?.() || [];
   selectedRows.value = selection;
   emit("selection-change", selectedRows.value);
@@ -1527,7 +1553,7 @@ const handleCheckboxChange = (params: any) => {
 /**
  * 全选变化
  */
-const handleCheckboxAll = (params: any) => {
+const handleCheckboxAll = () => {
   const selection = gridRef.value?.getCheckboxRecords?.() || [];
   selectedRows.value = selection;
   emit("selection-change", selectedRows.value);
@@ -2044,6 +2070,23 @@ defineExpose({
     align-items: stretch;
     height: auto;
     gap: 8px;
+  }
+}
+
+// ============================================================================
+// 自适应高度模式（传了 minHeight / maxHeight 但未传 height 时生效）：
+// 解除容器与 grid 的 100% 高度限制，让表格随数据量伸缩
+// ============================================================================
+.base-vxe-table-wrapper.is-auto-height {
+  height: auto;
+
+  .table-wrapper {
+    flex: none;
+    min-height: 0;
+
+    :deep(.vxe-grid) {
+      height: auto;
+    }
   }
 }
 </style>

@@ -50,7 +50,6 @@ import {
     watch,
     useAttrs,
     onMounted,
-    type ComponentPublicInstance,
 } from 'vue';
 import {
     ElForm,
@@ -380,15 +379,15 @@ const handleValidate = (prop: any, isValid: boolean, message: string) => {
     emit('validate', prop, isValid, message);
 };
 
-// 校验表单
-const validate = (callback?: (valid: boolean, fields?: any) => void) => {
-    if (!formRef.value) return;
-
-    formRef.value.validate((valid, fields) => {
-        if (callback) {
-            callback(valid, fields);
-        }
-    });
+// 校验表单（返回 Promise<boolean>，可直接 await 用于弹窗提交等场景）
+const validate = async (): Promise<boolean> => {
+    if (!formRef.value) return false;
+    try {
+        await formRef.value.validate();
+        return true;
+    } catch {
+        return false;
+    }
 };
 
 // ✅ 修复：校验指定字段

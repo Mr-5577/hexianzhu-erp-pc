@@ -22,7 +22,7 @@
             <!-- 动态列 -->
             <ElTableColumn v-for="col in columns" :key="col.prop || col.label" v-bind="col">
                 <template v-if="col.slotName" #default="scope">
-                    <slot :name="col.slotName" :row="scope.row" :column="scope.column" :$index="scope.$index" />
+                    <slot :name="col.slotName" :row="scope.row" :column="scope.column" :index="scope.$index" />
                 </template>
             </ElTableColumn>
 
@@ -30,7 +30,7 @@
             <ElTableColumn v-if="$slots.actions || showActions" :label="actionsLabel" :width="actionsWidth"
                 :fixed="actionsFixed" :align="actionsAlign">
                 <template #default="scope">
-                    <slot name="actions" :row="scope.row" :$index="scope.$index" />
+                    <slot name="actions" :row="scope.row" :index="scope.$index" />
                 </template>
             </ElTableColumn>
 
@@ -46,7 +46,7 @@
 
         <!-- 分页 -->
         <div v-if="pagination" class="table-pagination">
-            <ElPagination v-bind="paginationAttrs" :current-page="currentPage" :page-size="pageSize"
+            <ElPagination v-bind="paginationAttrs" :current-page="currentPageModel" :page-size="pageSizeModel"
                 :page-sizes="pageSizes" :total="total" :layout="paginationLayout" @size-change="handleSizeChange"
                 @current-change="handleCurrentPageChange" @prev-click="handlePrevClick" @next-click="handleNextClick" />
         </div>
@@ -263,7 +263,7 @@ const indexValue = computed(() => {
     };
 });
 
-const currentPage = computed({
+const currentPageModel = computed({
     get: () => innerCurrentPage.value,
     set: (val) => {
         innerCurrentPage.value = val;
@@ -271,7 +271,7 @@ const currentPage = computed({
     },
 });
 
-const pageSize = computed({
+const pageSizeModel = computed({
     get: () => innerPageSize.value,
     set: (val) => {
         innerPageSize.value = val;
@@ -318,20 +318,20 @@ const handleRowDblClick = (row: any, column: any, event: Event) => {
 };
 
 const handleSizeChange = (size: number) => {
-    pageSize.value = size;
-    emit('page-change', currentPage.value, size);
+    pageSizeModel.value = size;
+    emit('page-change', currentPageModel.value, size);
 };
 
 const handleCurrentPageChange = (page: number) => {
-    currentPage.value = page;
-    emit('page-change', page, pageSize.value);
+    currentPageModel.value = page;
+    emit('page-change', page, pageSizeModel.value);
 };
 
-const handlePrevClick = (page: number) => {
+const handlePrevClick = () => {
     // 可在此添加前置逻辑
 };
 
-const handleNextClick = (page: number) => {
+const handleNextClick = () => {
     // 可在此添加前置逻辑
 };
 

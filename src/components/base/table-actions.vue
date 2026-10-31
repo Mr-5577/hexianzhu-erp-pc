@@ -33,7 +33,7 @@
       <template #dropdown>
         <el-dropdown-menu>
           <el-dropdown-item
-            v-for="(item, idx) in hiddenActions"
+            v-for="item in hiddenActions"
             :key="item.key"
             :command="item.key"
             :disabled="resolveDisabled(item)"

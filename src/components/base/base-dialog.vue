@@ -24,8 +24,8 @@
     @close="handleClose"
     @closed="handleClosed"
   >
-    <!-- 标题插槽（支持用户自定义，但内置全屏按钮功能） -->
-    <template #title>
+    <!-- 标题栏（el-dialog 3.0 起 title 插槽废弃，统一使用 header 插槽） -->
+    <template #header>
       <slot name="title">
         <!-- 默认标题：带全屏按钮 -->
         <div class="dialog-header">
@@ -34,8 +34,9 @@
             v-if="showFullscreenBtn"
             class="fullscreen-toggle-btn"
             :size="fullscreenBtnSize"
-            :type="fullscreenBtnType"
-            :icon="innerFullscreen ? 'FullScreen' : 'FullScreen'"
+            :type="fullscreenBtnType === 'text' ? 'primary' : fullscreenBtnType"
+            :link="fullscreenBtnType === 'text'"
+            :icon="innerFullscreen ? 'Aim' : 'FullScreen'"
             @click.stop="toggleFullscreen"
           >
             {{ innerFullscreen ? '退出全屏' : '全屏' }}
@@ -77,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, useAttrs, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, useAttrs } from 'vue';
 import { ElDialog, ElButton } from 'element-plus';
 
 // ==================== Props ====================
@@ -141,7 +142,7 @@ const props = withDefaults(
     showFullscreenBtn?: boolean;
     /** 全屏按钮尺寸 */
     fullscreenBtnSize?: 'default' | 'small' | 'large';
-    /** 全屏按钮类型 */
+    /** 全屏按钮类型（'text' 已废弃，传 'text' 时自动按 link 链接按钮渲染） */
     fullscreenBtnType?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'text';
   }>(),
   {
@@ -154,7 +155,7 @@ const props = withDefaults(
     modalClass: '',
     appendToBody: true,
     lockScroll: true,
-    closeOnClickModal: true,
+    closeOnClickModal: false,
     closeOnPressEscape: true,
     showClose: true,
     beforeClose: undefined,
@@ -303,21 +304,27 @@ const handleBeforeClose = (done: () => void) => {
 
 // 确认
 const handleConfirm = async () => {
-  try {
-    // 执行前置校验
-    if (props.beforeConfirm) {
-      emit('before-confirm');
-      const result = await props.beforeConfirm();
-      if (result === false) {
-        innerConfirmLoading.value = false;
-        return;
-      }
-    }
-
+  // 无前置校验时直接触发 confirm
+  if (!props.beforeConfirm) {
     emit('confirm');
+    return;
+  }
+
+  // 异步前置校验期间自动进入 loading，防止重复点击提交
+  emit('before-confirm');
+  innerConfirmLoading.value = true;
+  try {
+    const result = await props.beforeConfirm();
+    if (result !== false) {
+      emit('confirm');
+    }
   } catch (error) {
     console.error('Confirm error:', error);
-    innerConfirmLoading.value = false;
+  } finally {
+    // 外部 confirmLoading 优先，未被外部接管时才恢复内部状态
+    if (!props.confirmLoading) {
+      innerConfirmLoading.value = false;
+    }
   }
 };
 
@@ -433,23 +440,19 @@ defineExpose({
   .fullscreen-toggle-btn {
     flex-shrink: 0;
     font-size: 13px;
-    
-    // 文字按钮默认样式
-    &.el-button--text {
-      color: #909399;
-      
-      &:hover {
-        color: #409EFF;
-      }
+    color: #909399;
+
+    &:hover {
+      color: #409eff;
     }
   }
 }
 
 // ==================== 内容区 ====================
+// 内边距统一由 bodyPadding prop（bodyStyle）控制，不在此处重复设置
 .dialog-body {
   max-height: 60vh;
   overflow: auto;
-  padding: 20px;
 
   // 滚动条美化
   &::-webkit-scrollbar {
