@@ -4,6 +4,12 @@
     ref="selectRef"
     v-bind="filteredAttrs"
     :model-value="modelValue"
+    :placeholder="placeholder"
+    :clearable="clearable"
+    :multiple="multiple"
+    :collapse-tags="collapseTags"
+    :collapse-tags-tooltip="collapseTagsTooltip"
+    :max-collapse-tags="maxCollapseTags"
     :disabled="disabled"
     :filterable="filterable"
     :filter-method="filterable ? handleFilter : undefined"
@@ -42,8 +48,10 @@ import { ElSelect, ElOption } from 'element-plus';
 
 // ==================== 类型定义 ====================
 interface Option {
-  value: any;
-  label: string;
+  /** 选项值（使用自定义 valueKey 时可为其他字段，故设为可选） */
+  value?: any;
+  /** 选项标签（使用自定义 labelKey 时可为其他字段，故设为可选） */
+  label?: string;
   disabled?: boolean;
   [key: string]: any;
 }

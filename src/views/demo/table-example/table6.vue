@@ -80,13 +80,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Download, Search } from "@element-plus/icons-vue";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
 
-const tableData = ref<any[]>([]);
 const selectedRows = ref<any[]>([]);
 const searchKeyword = ref("");
 const filterStatus = ref("");

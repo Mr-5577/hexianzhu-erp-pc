@@ -1,7 +1,7 @@
-<!-- 示例9：报表列表页（完全不编辑） -->
+<!-- 示例9：只读报表列表页（含操作列，合并原示例7的操作列能力） -->
 <template>
   <div class="demo-page">
-    <h3>📈 请款单列表（报表页）</h3>
+    <h3>📈 请款单列表（只读报表页 + 操作列）</h3>
 
     <base-vxe-table
       ref="tableRef"
@@ -77,6 +77,11 @@
           {{ row.payStatus }}
         </el-tag>
       </template>
+
+      <!-- ===== 操作列（超过 2 个自动收起为"更多"） ===== -->
+      <template #action="{ row }">
+        <table-actions :row="row" :actions="rowActions" @action="handleRowAction" />
+      </template>
     </base-vxe-table>
   </div>
 </template>
@@ -87,6 +92,7 @@ import { ElMessage } from "element-plus";
 import { Plus, Download, Printer, Search } from "@element-plus/icons-vue";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
+import type { TableActionItem } from "@/components/base/table-actions.vue";
 
 // ===== 静态数据（所有数据） =====
 const allData = ref([
@@ -201,7 +207,35 @@ const columns: VxeTableColumn[] = [
     title: "申请日期",
     width: 120,
   },
+  {
+    field: "action",
+    title: "操作",
+    width: 160,
+    fixed: "right",
+    slots: { default: "action" },
+  },
 ];
+
+/** 操作列配置：最多显示 2 个，其余收进"更多"；已支付的数据禁止删除 */
+const rowActions: TableActionItem[] = [
+  { key: "view", label: "查看", type: "primary" },
+  { key: "edit", label: "编辑", type: "success" },
+  {
+    key: "delete",
+    label: "删除",
+    type: "danger",
+    disabled: (row: any) => row.payStatus === "已支付",
+  },
+];
+
+const handleRowAction = ({ key, row }: { key: string; row: any }) => {
+  const tips: Record<string, string> = {
+    view: `查看 ${row.reqNo}`,
+    edit: `编辑 ${row.reqNo}`,
+    delete: `删除 ${row.reqNo}`,
+  };
+  ElMessage.info(tips[key] || key);
+};
 
 // ===== 辅助方法 =====
 const getStatusType = (status: string) => {

@@ -38,7 +38,6 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { ElMessage } from "element-plus";
 import BaseVxeTable from "@/components/base/base-vxe-table.vue";
 import type { VxeTableColumn } from "@/components/base/base-vxe-table.vue";
 

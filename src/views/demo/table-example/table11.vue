@@ -145,16 +145,6 @@ const columns: VxeTableColumn[] = [
   { field: "remark", title: "备注", minWidth: 160, showOverflow: true },
 ];
 
-// ===== 数据字典 =====
-const dictData = {
-  orderStatus: [
-    { label: "待付款", value: "pending" },
-    { label: "已付款", value: "paid" },
-    { label: "已发货", value: "shipped" },
-    { label: "已完成", value: "done" },
-  ],
-};
-
 // ===== 表格数据 =====
 const tableData = ref([
   {

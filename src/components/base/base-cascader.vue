@@ -12,6 +12,9 @@
     :filterable="filterable"
     :filter-method="filterMethod"
     :show-all-levels="showAllLevels"
+    :separator="separator"
+    :collapse-tags="collapseTags"
+    :collapse-tags-tooltip="collapseTagsTooltip"
     @update:model-value="handleUpdate"
     @change="handleChange"
     @clear="handleClear"
@@ -154,12 +157,9 @@ const computedProps = computed(() => ({
   lazy: props.lazy,
   lazyLoad: props.lazy ? props.lazyLoad : undefined,
   emitPath: props.emitPath,
-  separator: props.separator,
   multiple: props.multiple,
   checkStrictly: props.checkStrictly,
   expandTrigger: props.expandTrigger,
-  collapseTags: props.collapseTags,
-  collapseTagsTooltip: props.collapseTagsTooltip,
 }));
 
 /** 宽度样式 */

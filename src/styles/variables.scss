@@ -1,0 +1,31 @@
+// ============================================================================
+// 全局 SCSS 变量（样式统一出入口，新组件优先使用这里的变量）
+// ============================================================================
+
+// 布局尺寸
+$header-height: 50px;
+$sidebar-width: 210px;
+$sidebar-collapsed-width: 64px;
+$logo-height: 50px;
+
+// 主题色（与 element-plus 默认主色对齐，需要换肤时统一改这里）
+$primary-color: #409eff;
+$success-color: #67c23a;
+$warning-color: #e6a23c;
+$danger-color: #f56c6c;
+$info-color: #909399;
+
+// 侧边栏配色
+$sidebar-bg: #001529;
+$sidebar-text: rgba(255, 255, 255, 0.85);
+$sidebar-active-text: #ffffff;
+$sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+$sidebar-active-bg: $primary-color;
+
+// 表格配色
+$table-header-bg: #f8f8f9;
+$table-header-color: #515a6e;
+
+// 通用
+$page-padding: 12px;
+$border-radius: 4px;

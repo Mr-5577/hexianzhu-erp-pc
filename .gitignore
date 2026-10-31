@@ -11,6 +11,8 @@ node_modules
 .DS_Store
 dist
 dist-ssr
+# 多环境打包产物（vite.config 中 outDir 为 dist-<mode>）
+dist-*
 coverage
 *.local
 
@@ -37,3 +39,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# WorkBuddy 工具数据（非项目代码）
+.workbuddy/

@@ -77,7 +77,7 @@ interface TreeNode {
 function generateTreeData(
   rootCount = 6,
   maxDepth = 6,
-  childCount = 3,
+  _childCount = 3,
   totalTarget = 650,
 ): TreeNode[] {
   let idCounter = 0;

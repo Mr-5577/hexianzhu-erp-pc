@@ -1,0 +1,111 @@
+// ============================================================================
+// 全局样式入口（main.ts 中统一引入）
+// ============================================================================
+@use "./variables.scss" as *;
+
+// ===== vxe-ui 全局主题变量 =====
+:root {
+  --vxe-ui-font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --vxe-ui-table-header-background-color: #f8f8f9;
+  --vxe-ui-table-header-color: #515a6e;
+  --vxe-ui-table-header-font-weight: 600;
+  --vxe-ui-table-body-font-size: 13px;
+  --vxe-ui-table-body-color: #606266;
+}
+
+// ===== Reset =====
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  font-size: 14px;
+  color: #303133;
+}
+
+// ===== 全局滚动条样式 =====
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--el-fill-color-light);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--el-border-color-dark);
+  border-radius: 3px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--el-border-color-darker);
+  }
+}
+
+// ===== NProgress 进度条颜色（跟随主题色） =====
+#nprogress .bar {
+  background: var(--el-color-primary) !important;
+}
+
+// ===== 通用工具类 =====
+// 页面通用卡片容器
+.app-page-card {
+  background: #fff;
+  padding: $page-padding;
+  border-radius: $border-radius;
+}
+
+// 文字颜色快捷类
+.text-primary {
+  color: var(--el-color-primary);
+}
+.text-success {
+  color: var(--el-color-success);
+}
+.text-warning {
+  color: var(--el-color-warning);
+}
+.text-danger {
+  color: var(--el-color-danger);
+}
+.text-info {
+  color: var(--el-color-info);
+}
+
+// 布局快捷类
+.flex {
+  display: flex;
+}
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
