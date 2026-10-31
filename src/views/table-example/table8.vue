@@ -135,6 +135,22 @@ const columns: VxeTableColumn[] = [
     editable: true,
     editType: "input",
     placeholder: "请输入合同名称",
+    editRules: [
+      {
+        field: "contractName",
+        required: true,
+        message: "请输入合同名称",
+      },
+      {
+        validator(data) {
+          console.log("🚀 ~ validator", data);
+          const { cellValue } = data;
+          if (cellValue && (cellValue.length < 3 || cellValue.length > 50)) {
+            return new Error("名称长度在 3 到 50 个字符之间");
+          }
+        },
+      },
+    ],
   },
   // ============================================================
   // 项目分类（单选）

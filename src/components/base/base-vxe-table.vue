@@ -70,6 +70,7 @@
         :tooltip-config="tooltipConfig"
         :scroll-y="scrollYConfig"
         :height="computedHeight"
+        :min-height="minHeight"
         :max-height="maxHeight"
         :column-config="columnConfig"
         :header-cell-config="headerCellConfig"
@@ -282,6 +283,7 @@ export interface VxeTableColumn {
    * - 只写规则数组即可，不需要再包一层 `{ [field]: [...] }`
    * - 组件内部会自动聚合到 vxe-grid 的 editRules 上
    * - 支持多级表头（children 里的规则也会被收集）
+   * @url https://vxetable.cn/v4/#/component/table/validate/rules
    * @example
    * editRules: [
    *   { required: true, message: '请输入合同编号' },
@@ -424,6 +426,8 @@ interface Props {
   // ===== 表格样式与行为 =====
   /** 表格高度，支持数字（px）或字符串 */
   height?: string | number;
+  /** 表格最小高度 */
+  minHeight?: string | number;
   /** 表格最大高度 */
   maxHeight?: string | number;
   /** 是否显示边框 */
@@ -556,6 +560,7 @@ const props = withDefaults(defineProps<Props>(), {
   pageSizes: () => [10, 20, 50, 100],
   showToolbar: false,
   height: undefined,
+  minHeight: "150px",
   maxHeight: undefined,
   /**
    * 树形数据配置：
@@ -625,13 +630,13 @@ watch(
     if (newData === internalData.value) return;
 
     // 内容相同（浅比较）→ 也跳过，避免无意义重载
-    if (
-      Array.isArray(newData) &&
-      newData.length === internalData.value.length &&
-      newData.every((r, i) => r === internalData.value[i])
-    ) {
-      return;
-    }
+    // if (
+    //   Array.isArray(newData) &&
+    //   newData.length === internalData.value.length &&
+    //   newData.every((r, i) => r === internalData.value[i])
+    // ) {
+    //   return;
+    // }
 
     // 把新数据直接赋给 internalData，而不是展开复制
     // 这样 internalData.value 和 props.modelValue 始终是同一引用
@@ -1056,6 +1061,7 @@ const getEditRender = (col: VxeTableColumn): any => {
           filterable: true,
           showAllLevels: false, // 是否显示完整路径
           collapseTags: true, // 多选时是否折叠tag
+          collapseTagsTooltip: true, // 多选时折叠tag是否显示tooltip
           props: {
             value: valueField,
             label: labelField,
