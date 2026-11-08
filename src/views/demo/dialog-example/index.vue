@@ -15,6 +15,9 @@
         <el-button type="warning" @click="longVisible = true">
           长内容弹窗（限高滚动 + 全屏）
         </el-button>
+        <el-button @click="paddingVisible = true">
+          自定义内边距（body-padding）
+        </el-button>
         <el-button @click="customVisible = true">
           自定义底部 / 无底部
         </el-button>
@@ -68,9 +71,28 @@
       <p v-for="i in 30" :key="i">
         第 {{ i }} 段内容：body 区域通过 max-height=300 限高，超出后内部滚动；点击标题栏「全屏」可放大查看。
       </p>
+      <p class="demo-tip">
+        全屏后：标题栏与底部按钮固定，只有中间内容区滚动（不再整屏滚动）。
+      </p>
     </base-dialog>
 
-    <!-- ==================== 4. 自定义底部 / 无底部 ==================== -->
+    <!-- ==================== 4. 自定义内边距 ==================== -->
+    <!--
+      默认 bodyPadding 为 0：ElDialog 自身的 .el-dialog 已有 16px padding，
+      body 再叠加会让内容比标题多缩进一层，所以默认不加。
+      需要更宽松的留白时显式传 body-padding（数字自动转 px）。
+    -->
+    <base-dialog
+      v-model="paddingVisible"
+      title="自定义内边距"
+      width="520px"
+      :body-padding="16"
+    >
+      <p>通过 :body-padding="16" 在 .el-dialog 的 16px 基础上再加 16px。</p>
+      <p>不传时内容与标题左右对齐（都是 16px），传了会整体内缩一圈。</p>
+    </base-dialog>
+
+    <!-- ==================== 5. 自定义底部 / 无底部 ==================== -->
     <base-dialog
       v-model="customVisible"
       title="自定义底部"
@@ -172,7 +194,10 @@ const handleFormConfirm = () => {
 // ==================== 3. 长内容弹窗 ====================
 const longVisible = ref(false);
 
-// ==================== 4. 自定义底部 ====================
+// ==================== 4. 自定义内边距 ====================
+const paddingVisible = ref(false);
+
+// ==================== 5. 自定义底部 ====================
 const customVisible = ref(false);
 </script>
 
@@ -192,5 +217,10 @@ const customVisible = ref(false);
   display: flex;
   justify-content: center;
   padding-top: 16px;
+}
+
+.demo-tip {
+  color: #909399;
+  font-size: 13px;
 }
 </style>

@@ -26,18 +26,6 @@
               </div>
             </el-form-item>
 
-            <el-form-item label="数字输入（2 位小数）">
-              <base-input
-                v-model="inputDemo.amount"
-                number
-                :decimal-places="2"
-                placeholder="只允许数字，最多两位小数"
-              />
-              <div class="demo-value">
-                当前值：{{ inputDemo.amount }}（{{ typeof inputDemo.amount }}）
-              </div>
-            </el-form-item>
-
             <el-form-item label="大写转换">
               <base-input
                 v-model="inputDemo.upper"
@@ -63,6 +51,24 @@
                 placeholder="回车或点清空触发 @search"
                 @search="handleInputSearch"
               />
+            </el-form-item>
+
+            <el-form-item label="宽度（style 优先）">
+              <div class="width-row">
+                <base-input
+                  v-model="inputDemo.widthProp"
+                  :width="180"
+                  placeholder="width=180（数字自动转 px）"
+                />
+                <base-input
+                  v-model="inputDemo.widthStyle"
+                  style="width: 180px"
+                  placeholder="style 里的 width"
+                />
+              </div>
+              <div class="demo-value">
+                width prop 只作默认值，父级 style 优先级更高（此处两者渲染等宽）
+              </div>
             </el-form-item>
           </el-form>
         </el-card>
@@ -202,10 +208,11 @@ const activeTab = ref("input");
 const inputDemo = reactive({
   basic: "",
   debounce: "",
-  amount: "",
   upper: "",
   remark: "",
   keyword: "",
+  widthProp: "",
+  widthStyle: "",
 });
 
 const handleInputSearch = (value: string) => {
@@ -381,6 +388,12 @@ const handleReset = () => {
   margin-top: 4px;
   font-size: 12px;
   color: #909399;
+}
+
+.width-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
 }
 
 .form-json {

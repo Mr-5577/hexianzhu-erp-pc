@@ -44,6 +44,7 @@
 
       <!-- ===== 工具栏左侧：搜索区 ===== -->
       <template #toolbar-left>
+        <!-- 宽度优先取 style：组件的 width prop 只是默认值（100%），style 里的 width 会覆盖它 -->
         <base-input
           v-model="queryParams.name"
           placeholder="名称搜索"
