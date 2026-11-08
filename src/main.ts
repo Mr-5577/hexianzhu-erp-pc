@@ -18,6 +18,9 @@ import {
   ElDatePicker,
   ElTimeSelect,
 } from "element-plus";
+VxeUI.setConfig({
+  zIndex: 3000, // 根据项目实际 z-index 情况调整，建议大于弹窗层级
+});
 
 import App from "./App.vue";
 // 引入路由

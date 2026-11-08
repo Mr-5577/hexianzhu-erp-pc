@@ -307,6 +307,8 @@ export interface VxeTableColumn {
   disabledTip?: string | ((row: any) => string | null | undefined);
   /** 占位符文本 */
   placeholder?: string;
+  /** 一个用来判断该日期是否被禁用的函数，接受一个 Date 对象作为参数。应该返回一个 Boolean 值。 */
+  disabledDate?: (time: Date) => boolean; // 仅对日期选择器有效
 
   // ===== 选项相关（用于 select / cascader） =====
   /** 选项数据，支持静态数组或动态函数 */
@@ -757,6 +759,46 @@ const computedEditRules: any = computed<Record<string, VxeValidatorRule[]>>(
     return merged;
   },
 );
+/** 统一解析 disabled：布尔直接用，函数用 row 求值 */
+const resolveDisabled = (
+  col: VxeTableColumn | undefined,
+  row: any,
+): boolean => {
+  if (!col) return false;
+  if (typeof col.disabled === "function") return !!col.disabled(row);
+  return col.disabled === true;
+};
+
+/** 统一解析禁用提示文案 */
+const resolveDisabledTip = (
+  col: VxeTableColumn | undefined,
+  row: any,
+): string | null | undefined => {
+  if (!col || !col.disabledTip) return null;
+  return typeof col.disabledTip === "function"
+    ? col.disabledTip(row)
+    : col.disabledTip;
+};
+
+/**
+ * 单元格禁用态样式类：
+ * 对于「可编辑列但因为 disabled 被锁定」的单元格，返回 vxetable-cell-locked，
+ * 配合 CSS 做置灰 + 锁图标 + not-allowed 光标，
+ * 让用户在点击前就能直观看出「哪些格子不能编辑」（解决"点了才发现不能编"的体验问题）。
+ * 注意：整列不可编辑（editable === false）或无 editRender 的单元格不加这个类。
+ */
+const cellClassName = ({ row, column }: any): string => {
+  const col = findColumnByField(props.columns, column.field);
+  if (
+    col &&
+    col.editable !== false &&
+    !props.readonly &&
+    resolveDisabled(col, row)
+  ) {
+    return "vxetable-cell-locked";
+  }
+  return "";
+};
 /**
  * 编辑配置
  *
@@ -791,25 +833,13 @@ const editConfig: any = computed(() => {
       if (col.editable === false) return false;
 
       // 3. 动态 disabled：函数就调用，布尔就直接用
-      const disabled =
-        typeof col.disabled === "function"
-          ? col.disabled(row)
-          : col.disabled === true;
-      if (disabled) {
-        // 解析提示文案
-        let tip: string | null | undefined;
-        if (typeof col.disabledTip === "function") {
-          tip = col.disabledTip(row);
-        } else {
-          tip = col.disabledTip;
-        }
-        // 有提示才弹
-        if (tip) {
-          ElMessage.warning(tip);
-        }
-        return false;
+      if (resolveDisabled(col, row)) {
+        // 有 disabledTip 时，悬停 tooltip 已说明原因，点击会重复弹窗，如果不需要点击提示可以注释 if(tip) ElMessage.warning(tip);
+        // 当未配置 disabledTip 时，用更轻量的 warning 兜底提示一下。
+        const tip = resolveDisabledTip(col, row);
+        if (tip) ElMessage.warning(tip);
+        if (!tip) ElMessage.warning("当前单元格不可编辑");
       }
-
       // 4. 默认允许
       return true;
     },
@@ -820,9 +850,18 @@ const editConfig: any = computed(() => {
  * Tooltip 配置
  */
 const tooltipConfig: any = computed(() => ({
-  theme: "dark",
-  enterable: false,
-  showAll: true,
+  theme: "dark", // 主题颜色，dark/light
+  enterable: false, // 鼠标是否可进入 tooltip 容器
+  showAll: true, // 所有单元格开启工具提示
+  // 悬停禁用单元格时，提前说明"为什么不能编辑"（点击前的友好提示）。
+  // 非禁用单元格返回 undefined → vxe 回退到默认单元格文本提示，不丢失现有溢出 tooltip。
+  // contentMethod: ({ row, column }: any) => {
+  //   const col = findColumnByField(props.columns, column.field);
+  //   if (col && resolveDisabled(col, row)) {
+  //       return resolveDisabledTip(col, row) || "当前单元格不可编辑";
+  //   }
+  //   return undefined;
+  // },
 }));
 
 /**
@@ -870,9 +909,11 @@ const computedHeight = computed(() => {
  */
 const gridOptions = computed<VxeGridProps>(() => ({
   border: props.border,
+  // 禁用（被 locked）的单元格加样式类，做"点击前可见"的视觉提示
+  cellClassName: cellClassName as any,
   stripe: props.stripe,
-  showOverflow: true,
-  showHeaderOverflow: true,
+  showOverflow: true, // 全局开启内容溢出显示 tooltip
+  showHeaderOverflow: true, // 全局开启表头内容溢出显示 tooltip
   keepSource: false,
   // 合计行配置
   showFooter: props.showFooter,
@@ -1031,6 +1072,7 @@ const getEditRender = (col: VxeTableColumn): any => {
           type: "date",
           format: "YYYY-MM-DD",
           valueFormat: "YYYY-MM-DD",
+          disabledDate: col.disabledDate || undefined,
         },
       };
     }
@@ -1043,28 +1085,31 @@ const getEditRender = (col: VxeTableColumn): any => {
           type: "datetime",
           format: "YYYY-MM-DD HH:mm:ss",
           valueFormat: "YYYY-MM-DD HH:mm:ss",
+          disabledDate: col.disabledDate || undefined,
         },
       };
     }
     case "year": {
       return {
-        name: "VxeDatePicker",
+        name: "ElDatePicker",
         props: {
           ...commonProps,
           type: "year",
-          format: "yyyy",
-          valueFormat: "yyyy",
+          format: "YYYY",
+          valueFormat: "YYYY",
+          disabledDate: col.disabledDate || undefined,
         },
       };
     }
     case "month": {
       return {
-        name: "VxeDatePicker",
+        name: "ElDatePicker",
         props: {
           ...commonProps,
           type: "month",
-          format: "yyyy-MM",
-          valueFormat: "yyyy-MM",
+          format: "YYYY-MM",
+          valueFormat: "YYYY-MM",
+          disabledDate: col.disabledDate || undefined,
         },
       };
     }
@@ -1700,7 +1745,7 @@ const validateWithMessage = async (options?: {
   return { valid: true, errMap: null };
 };
 
-// watch 内部数据变化时刷新合计（数据编辑后自动更新）
+// 外部替换数据（数组引用变化）时刷新合计
 watch(
   () => internalData.value,
   () => {
@@ -1967,6 +2012,33 @@ defineExpose({
           // color: #303841;
         }
       }
+    }
+  }
+}
+
+// 禁用（被锁定）单元格：点击前即可见，避免"点了才发现不能编辑"
+.table-wrapper {
+  :deep(.vxetable-cell-locked) {
+    .vxe-cell {
+      position: relative; // 作为锁图标的定位上下文
+      color: #727272; // 禁用单元格文字颜色
+      cursor: not-allowed; // 禁用单元格鼠标样式
+    }
+
+    // 锁图标：绝对定位脱离 flex 流，避免影响单元格内文字的居中
+    .vxe-cell::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
+      width: 12px;
+      height: 12px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' fill='%23909399'%3E%3Cpath d='M832 464h-68V240c0-123.712-100.288-224-224-224H384c-123.712 0-224 100.288-224 224v224h-68C59.216 464 32 491.216 32 524v352c0 32.784 27.216 60 60 60h800c32.784 0 60-27.216 60-60V524c0-32.784-27.216-60-60-60zM332 240c0-57.44 46.56-104 104-104h152c57.44 0 104 46.56 104 104v224H332V240z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-size: contain;
+      background-position: center;
+      opacity: 0.7;
     }
   }
 }
