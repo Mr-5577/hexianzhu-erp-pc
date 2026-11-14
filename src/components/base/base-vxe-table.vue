@@ -134,7 +134,7 @@ import {
   nextTick,
 } from "vue";
 import { ElMessage } from "element-plus";
-import { Refresh } from "@element-plus/icons-vue";
+import { Refresh, Edit } from "@element-plus/icons-vue";
 import type { VxeGridInstance, VxeGridProps } from "vxe-table";
 
 /**
@@ -510,7 +510,31 @@ interface Props {
   }) => { rowspan: number; colspan: number } | void;
 
   // ==== 展开行配置 =====
-  /** 展开行配置 */
+  /**
+   * 展开行配置
+   *
+   * @property labelField    展开列显示的字段名，可直接显示在单元格中。string
+   * @property expandAll     默认展开所有行（仅初始化时触发一次）。boolean，默认 false
+   * @property expandRowKeys 默认展开指定行（仅初始化时触发一次，需配合 row-config.keyField）。string[]
+   * @property accordion     每次只能展开一行（手风琴）。boolean，默认 false
+   * @property height        展开内容的高度，默认自适应高度。number
+   * @property padding       展开内容的内间距。boolean，默认 false（vxe-table@4.7.8）
+   * @property indent        存在树结构时展开内容的缩进，默认继承树配置。number（vxe-table@4.13.6）
+   * @property trigger       触发方式，多种功能重叠时会同时触发： string，默认 'default'
+   *                         - 'default' 点击按钮触发（默认）
+   *                         - 'cell'    点击单元格触发
+   *                         - 'row'     点击行触发
+   *                         - 'manual'  手动方式
+   * @property lazy          是否使用懒加载。boolean，默认 false
+   * @property loadMethod    异步加载展开后内容的方法。({ row, rowIndex?, $rowIndex? }) => Promise
+   * @property toggleMethod  展开/关闭触发之前调用，通过返回值决定是否继续执行。({ expanded, column, columnIndex, row, rowIndex? }) => boolean
+   * @property visibleMethod 返回值决定是否显示展开按钮。({ column, columnIndex, row, rowIndex? }) => boolean
+   * @property reserve       是否保留展开状态（如数据刷新后仍保留，需配合 row-config.keyField）。boolean，默认 false
+   * @property showIcon      是否显示图标按钮。boolean，默认 true
+   * @property iconOpen      自定义展开后显示的图标。string
+   * @property iconClose     自定义收起后显示的图标。string
+   * @property iconLoaded    自定义懒加载中显示的图标。string
+   */
   expandConfig?: any;
 }
 
@@ -640,13 +664,13 @@ watch(
     if (newData === internalData.value) return;
 
     // 内容相同（浅比较）→ 也跳过，避免无意义重载
-    // if (
-    //   Array.isArray(newData) &&
-    //   newData.length === internalData.value.length &&
-    //   newData.every((r, i) => r === internalData.value[i])
-    // ) {
-    //   return;
-    // }
+    if (
+      Array.isArray(newData) &&
+      newData.length === internalData.value.length &&
+      newData.every((r, i) => r === internalData.value[i])
+    ) {
+      return;
+    }
 
     // 把新数据直接赋给 internalData，而不是展开复制
     // 这样 internalData.value 和 props.modelValue 始终是同一引用
@@ -946,7 +970,12 @@ const gridOptions = computed<VxeGridProps>(() => ({
  * @param tipConfig 提示配置
  * @returns VNode 渲染函数
  */
-const createHeaderWithTip = (title: string, tipConfig: HeaderTipConfig) => {
+const createHeaderWithTip = (
+  title: string,
+  tipConfig: HeaderTipConfig,
+  showEditIcon = false,
+  showRequired = false,
+) => {
   // 使用 h 函数创建自定义表头
   return () => {
     // 获取图标组件（默认 QuestionFilled）
@@ -955,6 +984,77 @@ const createHeaderWithTip = (title: string, tipConfig: HeaderTipConfig) => {
 
     // 获取 Tooltip 组件
     const Tooltip = resolveComponent("el-tooltip");
+
+    const children: any[] = [];
+    // 必填图标
+    if (showRequired) {
+      children.push(
+        h(
+          "span",
+          {
+            class: "header-required-icon",
+            style: {
+              width: "6px",
+              height: "15px",
+              color: "#f56c6c",
+            },
+          },
+          "*",
+        ),
+      );
+    }
+    // 可编辑铅笔图标（手动补回，替代被覆盖的 vxe 原生图标）
+    if (showEditIcon) {
+      children.push(
+        h(Edit, {
+          class: "header-edit-icon",
+          style: {
+            width: "16px",
+            height: "16px",
+            flexShrink: 0,
+          },
+        }),
+      );
+    }
+    // 标题
+    children.push(h("span", { class: "header-label" }, title));
+    // 提示图标（使用 el-tooltip 包裹）
+    children.push(
+      h(
+        Tooltip,
+        {
+          content: tipConfig.content,
+          placement: tipConfig.placement || "top",
+          effect: "dark",
+          popperStyle: {
+            maxWidth: tipConfig.width || "300px",
+            wordBreak: "break-word",
+          },
+        },
+        {
+          default: () =>
+            h(
+              "span",
+              {
+                class: "header-tip-icon",
+                style: {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  cursor: "help",
+                  color: "#909399",
+                  fontSize: "14px",
+                  flexShrink: 0,
+                },
+              },
+              [
+                h(Icon, {
+                  style: { width: "14px", height: "14px" },
+                }),
+              ],
+            ),
+        },
+      ),
+    );
 
     // 返回包含标题和图标的 VNode
     return h(
@@ -965,51 +1065,11 @@ const createHeaderWithTip = (title: string, tipConfig: HeaderTipConfig) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "4px",
+          gap: "2px",
+          marginTop: "5px",
         },
       },
-      [
-        // 表头标题文本
-        h("span", { class: "header-label" }, title),
-        // 提示图标（使用 el-tooltip 包裹）
-        h(
-          Tooltip,
-          {
-            content: tipConfig.content,
-            placement: tipConfig.placement || "top",
-            effect: "dark",
-            popperStyle: {
-              maxWidth: tipConfig.width || "300px",
-              wordBreak: "break-word",
-            },
-          },
-          {
-            default: () =>
-              h(
-                "span",
-                {
-                  class: "header-tip-icon",
-                  style: {
-                    display: "inline-flex",
-                    alignItems: "center",
-                    cursor: "help",
-                    color: "#909399",
-                    fontSize: "14px",
-                    marginLeft: "2px",
-                  },
-                },
-                [
-                  h(Icon, {
-                    style: {
-                      width: "14px",
-                      height: "14px",
-                    },
-                  }),
-                ],
-              ),
-          },
-        ),
-      ],
+      children,
     );
   };
 };
@@ -1245,7 +1305,7 @@ const convertColumn = (col: VxeTableColumn): any => {
   if (col.type === "expand") {
     return {
       type: "expand",
-      width: col.width || 34,
+      width: col.width || 50,
       align: col.align || "center",
       fixed: col.fixed,
       slots: col.slots || { content: "expandContent" },
@@ -1306,7 +1366,17 @@ const convertColumn = (col: VxeTableColumn): any => {
   if (col.headerTip && col.title) {
     // 如果用户已经自定义了 slots.header，则不覆盖
     if (!baseCol.slots.header) {
-      baseCol.slots.header = createHeaderWithTip(col.title, col.headerTip);
+      // 非只读 + 列未显式关闭编辑
+      const showEditIcon = !props.readonly && col.editable !== false;
+      // 非只读 + 列显示设置了必填校验
+      const required = col.editRules?.some((r) => r.required);
+      const showRequired = !props.readonly && required;
+      baseCol.slots.header = createHeaderWithTip(
+        col.title,
+        col.headerTip,
+        showEditIcon,
+        showRequired,
+      );
     }
   }
 
@@ -1984,6 +2054,13 @@ defineExpose({
       }
       // 调整body单元格样式
       .vxe-table--body {
+        // 调整展开行图标的位置
+        .col--expand {
+          .vxe-body-cell--wrapper {
+            display: flex;
+            justify-content: center;
+          }
+        }
         tr td {
           .vxe-cell {
             padding: 0 8px !important; // 去掉单元格默认的内边距
