@@ -100,7 +100,7 @@ const expandConfig = {
 const columns: VxeTableColumn[] = [
   {
     type: "expand",
-    width: 34,
+    width: 50,
     align: "center",
     // 不写 slots 时，默认就是 { content: 'expandContent' }
     // slots: { content: 'expandContent' },
